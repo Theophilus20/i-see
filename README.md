@@ -101,6 +101,20 @@ pick this repository, and enter your `MODEL_API_KEY` when asked. A free service 
 `HOST=0.0.0.0`, `TRUST_PROXY=1` (when behind the host's proxy) and `MODEL_API_KEY`. The host
 sets `PORT`.
 
+**Check it is working.** Open `https://<your address>/api/v1/health?recheck`. Under
+`modelCheck`, `listed` should name the models your key can use (`muse-spark-1.3` and the
+rest). If it is empty (`[]`), Meta is not offering your key any models when asked from that
+server, and every scan will fail with "does not offer the model". Compare:
+
+- `key.ends`: the last four characters of the key the server is using. They should match
+  your key.
+- `network`: the server's public address and country, which Meta may use to decide what to
+  offer.
+- `reply`: exactly what Meta answered.
+
+If the same key lists models from your own computer, the difference is where the request
+comes from: try another region in the host's settings, or another host.
+
 **Before you share the address:** every scan runs on your Meta key, and anyone with the
 address can scan. Keep `RATE_PER_MINUTE` low, watch your usage on dev.meta.ai, and share the
 address only with people you trust.
@@ -268,6 +282,7 @@ contributor version. Switch it off at any time.
 | A scan takes a long time | A full profile uses Meta's models heavily (each part is named twice, independently). **Quick look** names each part once and is faster. |
 | A part has the wrong name or outline | Fix it in **Train**. On the profile, you can also remove the outline, or tap the right spot to add one. |
 | The camera does not open on a phone | The camera needs HTTPS: use the tunnel in [On a phone](#on-a-phone), and allow camera access when the browser asks. |
+| Online, every scan says "does not offer the model" | Open `/api/v1/health?recheck` on your address and read `modelCheck` (see [Put it online](#put-it-online)). |
 | "Port already in use" | Another copy is still running. Close it (Ctrl+C in its window) and start again. |
 
 ### Privacy, in short

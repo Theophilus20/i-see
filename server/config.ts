@@ -62,8 +62,11 @@ export const CONNECTOR_IDS: readonly string[] = ALL_CONNECTORS;
 
 type Env = Record<string, string | undefined>;
 
+// Values pasted into a host's settings page often arrive with quotes or invisible characters
+// around them ("LLM|…" with its quotes, a zero-width space from a web page). Both are removed.
 const str = (env: Env, k: string): string | null => {
-  const v = env[k]?.trim();
+  let v = env[k]?.replace(/[\u200B-\u200D\u2060\uFEFF]/g, '').trim();
+  if (v && v.length >= 2 && /^(["'`]).*\1$/s.test(v)) v = v.slice(1, -1).trim();
   return v ? v : null;
 };
 const num = (env: Env, k: string, d: number): number => {

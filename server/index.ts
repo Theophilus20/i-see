@@ -1,4 +1,5 @@
 /** Starts the I SEE gateway. Configuration comes from the environment (see docs/SETTINGS.md). */
+import dns from 'node:dns';
 import net from 'node:net';
 import { serve } from '@hono/node-server';
 import { createApp } from './app';
@@ -9,6 +10,9 @@ import { runModelCheck } from './meta/models';
 // On slow or high-latency connections Node gives each address only 250 ms before trying the
 // next, which can make every attempt fail. Give each one longer.
 net.setDefaultAutoSelectFamilyAttemptTimeout?.(2000);
+// Try IPv4 addresses first. Some services place an IPv6 address less reliably than an IPv4 one,
+// and a service that decides by location can then refuse a request it would otherwise accept.
+dns.setDefaultResultOrder('ipv4first');
 
 const cfg = loadConfig();
 if (!cfg.staticDir && process.env.NODE_ENV === 'production') cfg.staticDir = 'dist';

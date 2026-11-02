@@ -280,6 +280,15 @@ export interface ModelCheck {
   status: number | null;
   error: string | null;
   at: string | null;
+  /** The address the check asked. */
+  base?: string;
+  /** The key in use: its length and last four characters, to compare with your own copy. */
+  key?: { length: number; ends: string; unusual: boolean };
+  /** This server's public address and country, which services that limit by location go by. */
+  network?: { ip: string; country: string } | null;
+  /** What the service said, when it listed no models or refused. */
+  reply?: string | null;
+  replyIds?: Record<string, string>;
 }
 
 export interface ApiErrorBody {

@@ -60,7 +60,7 @@ function config(over: Partial<Config> = {}, env: Record<string, string> = {}): C
 }
 
 function makeApp(cfg = config()) {
-  return createApp({ cfg, connectorFetch, breakers: new CircuitBreakers({ threshold: 50, cooldownMs: 10 }), sleep: async () => {} });
+  return createApp({ cfg, connectorFetch, breakers: new CircuitBreakers({ threshold: 50, cooldownMs: 10 }), sleep: async () => {}, traceUrl: null });
 }
 
 async function listen(app: ReturnType<typeof makeApp>['app']): Promise<{ base: string; server: ServerType }> {
@@ -121,6 +121,14 @@ describe('health', () => {
     expect(h.connectors).toContain('web-search');
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+  });
+
+  it('asks the service again for the model list on ?recheck', async () => {
+    const { app } = makeApp();
+    const h = (await (await app.request('/api/v1/health?recheck')).json()) as { modelCheck: { state: string; listed: string[]; key: { ends: string } } };
+    expect(h.modelCheck.state).toBe('done');
+    expect(h.modelCheck.listed).toContain('muse-spark-1.3');
+    expect(h.modelCheck.key.ends).toBe(TEST_KEY.slice(-4));
   });
 });
 

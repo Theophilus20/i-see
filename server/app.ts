@@ -52,7 +52,7 @@ import { OpenWeightTasks } from './openweight/tasks';
 import { RateLimiter } from './ratelimit';
 import { SourceRetriever } from './retrieval';
 import { groundedSearch, insideResearch } from './retrieval/search';
-import { modelCheck } from './meta/models';
+import { modelCheck, recheckModels } from './meta/models';
 
 export interface AppDeps {
   cfg: Config;
@@ -62,6 +62,8 @@ export interface AppDeps {
   connectorFetch?: typeof fetch;
   breakers?: CircuitBreakers;
   sleep?: (ms: number) => Promise<void>;
+  /** The page that reports this server's public address (null to skip; tests). */
+  traceUrl?: string | null;
 }
 
 interface RouteSet {
@@ -257,7 +259,12 @@ export function createApp(deps: AppDeps) {
 
   const api = new Hono<Env>();
 
-  api.get('/health', (c) => c.json(health()));
+  // `?recheck` asks the service again which models the key can use (at most every 20 seconds),
+  // so a change on the service's side shows without restarting the server.
+  api.get('/health', async (c) => {
+    if (c.req.query('recheck') !== undefined && cfg.meta.apiKey) await recheckModels(cfg, log, deps.fetch ?? fetch, { traceUrl: deps.traceUrl });
+    return c.json(health());
+  });
 
   api.post('/scans', jsonLimit(imageJsonBytes), async (c) => {
     const lim = limited(c, scanLimiter);

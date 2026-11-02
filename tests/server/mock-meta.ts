@@ -391,6 +391,11 @@ export class MockMeta {
     const isMeta = path.startsWith('/v1/');
     if (isMeta && req.headers.authorization !== `Bearer ${TEST_KEY}`) return json(401, { error: { message: 'Invalid API key', type: 'invalid_request_error', code: 'invalid_api_key', param: null } });
 
+    if (path === '/v1/models' && req.method === 'GET') {
+      const ids = ['muse-spark-1.3', 'muse-spark-1.3-contributor', 'muse-wonder-1.0', 'muse-image-1.0', 'muse-voice-transcribe-1.0', 'sam-3.1'];
+      return json(200, { object: 'list', data: ids.map((id) => ({ id, object: 'model', created: 0, owned_by: 'meta' })) });
+    }
+
     if (path.endsWith('/chat/completions')) {
       const messages = body.messages as Array<{ role: string; content: unknown }>;
       const system = String(messages[0]?.content ?? '');

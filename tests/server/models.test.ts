@@ -31,8 +31,8 @@ describe('the models this key can use', () => {
 
   it('reads the list in the shapes model services use', async () => {
     const answer = (body: unknown, status = 200) => (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
-    expect(await listModels('https://x/v1', 'k', answer({ data: [{ id: 'muse-spark-1.2' }, { id: 'sam-3' }] }))).toEqual({ ids: ['muse-spark-1.2', 'sam-3'] });
-    expect(await listModels('https://x/v1', 'k', answer({ models: [{ name: 'muse-spark-1.2' }] }))).toEqual({ ids: ['muse-spark-1.2'] });
+    expect(await listModels('https://x/v1', 'k', answer({ data: [{ id: 'muse-spark-1.2' }, { id: 'sam-3' }] }))).toMatchObject({ ids: ['muse-spark-1.2', 'sam-3'] });
+    expect(await listModels('https://x/v1', 'k', answer({ models: [{ name: 'muse-spark-1.2' }] }))).toMatchObject({ ids: ['muse-spark-1.2'] });
     expect(await listModels('https://x/v1', 'k', answer({ error: 'no' }, 401))).toMatchObject({ status: 401 });
   });
 
@@ -46,7 +46,7 @@ describe('the models this key can use', () => {
   });
 });
 
-import { modelCheck, runModelCheck } from '../../server/meta/models';
+import { keyHint, modelCheck, publicNetwork, recheckModels, runModelCheck } from '../../server/meta/models';
 import { loadConfig } from '../../server/config';
 describe('the start-up model check', () => {
   const cfgWith = () => loadConfig({ MODEL_API_KEY: 'LLM|1|secretvalue', META_API_BASE: 'https://x/v1' } as NodeJS.ProcessEnv);
@@ -74,6 +74,54 @@ describe('the start-up model check', () => {
     }) as unknown as typeof fetch;
     expect((await runModelCheck(cfg, log, broken)).state).toBe('failed');
     expect(cfg.meta.models.spark).toBe('muse-spark-1.3');
+  });
+
+  it('when the list is empty, keeps what the service said, where this server is, and which key it used', async () => {
+    const cfg = cfgWith();
+    lines.length = 0;
+    const answer = (async (url: string) =>
+      String(url).includes('trace')
+        ? new Response('fl=1\nip=203.0.113.9\nloc=US\ncolo=SJC\n')
+        : new Response(JSON.stringify({ object: 'list', data: [] }), { headers: { 'x-fb-trace-id': 'Abc123', 'content-type': 'application/json' } })) as unknown as typeof fetch;
+    const r = await runModelCheck(cfg, log, answer, { traceUrl: 'https://trace.test/cdn-cgi/trace' });
+    expect(r.state).toBe('done');
+    expect(r.listed).toEqual([]);
+    expect(r.reply).toBe('{"object":"list","data":[]}');
+    expect(r.replyIds).toEqual({ 'x-fb-trace-id': 'Abc123' });
+    expect(r.network).toEqual({ ip: '203.0.113.9', country: 'US' });
+    expect(r.key).toEqual({ length: 17, ends: 'alue', unusual: false });
+    expect(JSON.stringify(r)).not.toContain('secretvalue');
+    expect(lines.join(' ')).toMatch(/listed no models for this key when asked from this server/);
+    expect(cfg.meta.models.spark).toBe('muse-spark-1.3');
+  });
+
+  it('can be run again from the health page, but not more than every 20 seconds', async () => {
+    const cfg = cfgWith();
+    const list = (async () => new Response(JSON.stringify({ data: [{ id: 'muse-spark-1.3' }] }))) as unknown as typeof fetch;
+    expect(await recheckModels(cfg, log, list, { traceUrl: null }, 1_000_000)).toBe(true);
+    expect(modelCheck(cfg).listed).toEqual(['muse-spark-1.3']);
+    expect(await recheckModels(cfg, log, list, { traceUrl: null }, 1_005_000)).toBe(false);
+    expect(await recheckModels(cfg, log, list, { traceUrl: null }, 1_030_000)).toBe(true);
+  });
+
+  it('reads the public address, and gives up quietly when it cannot', async () => {
+    const page = (async () => new Response('ip=2001:db8::1\nloc=NL\n')) as unknown as typeof fetch;
+    expect(await publicNetwork(page, 'https://t/')).toEqual({ ip: '2001:db8::1', country: 'NL' });
+    const down = (async () => {
+      throw new Error('offline');
+    }) as unknown as typeof fetch;
+    expect(await publicNetwork(down, 'https://t/')).toBeNull();
+    expect(keyHint('LLM|12|abc\u200b')).toMatchObject({ unusual: true });
+    expect(keyHint('short')).toMatchObject({ ends: '' });
+  });
+});
+
+describe('settings pasted into a host', () => {
+  it('lose the quotes and invisible characters around them', () => {
+    const cfg = loadConfig({ MODEL_API_KEY: '  "LLM|1|secret"\u200b ', META_API_BASE: "'https://api.meta.ai/v1/'" } as NodeJS.ProcessEnv);
+    expect(cfg.meta.apiKey).toBe('LLM|1|secret');
+    expect(cfg.meta.baseUrl).toBe('https://api.meta.ai/v1');
+    expect(loadConfig({ MODEL_API_KEY: '""' } as NodeJS.ProcessEnv).meta.apiKey).toBeNull();
   });
 });
 
