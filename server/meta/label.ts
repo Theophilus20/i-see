@@ -21,8 +21,8 @@
  */
 import sharp from 'sharp';
 import { buildObjectPrompt, decodeMaskToRaster, recordsOfKind } from '@meta-sam/parser';
-import { CloseNameSchema, GroundOutputSchema, LabelCheckOutputSchema, MarkNamesSchema, NameOutlineSchema, PartMarksSchema, SecondOpinionSchema, type CloseName } from '../../src/shared/model-io';
-import { CLOSE_NAME_SYSTEM, GROUND_SYSTEM, LABEL_CHECK_SYSTEM, PART_MARKS_SYSTEM, closeNameUser, groundUser, labelCheckUser, partMarksUser } from '../../src/shared/prompts';
+import { CloseNameSchema, DrawingPartSchema, GroundOutputSchema, LabelCheckOutputSchema, MarkNamesSchema, NameOutlineSchema, PartMarksSchema, SecondOpinionSchema, type CloseName, type DrawingPart } from '../../src/shared/model-io';
+import { CLOSE_NAME_SYSTEM, DRAWING_PART_SYSTEM, GROUND_SYSTEM, LABEL_CHECK_SYSTEM, PART_MARKS_SYSTEM, closeNameUser, drawingPartUser, groundUser, labelCheckUser, partMarksUser } from '../../src/shared/prompts';
 import type { Region } from '../../src/shared/schema';
 import type { ImagePayload } from '../../src/shared/tasks';
 import { normalizeForMatch, sanitizeText } from '../../src/shared/text';
@@ -792,16 +792,20 @@ export async function spotlight(view: ImagePayload, region: { path: string; box:
   const padY = Math.max(b.h * 0.9, h * 0.08);
   const close = (await zoomCrop({ ...view, base64: lit.toString('base64') }, { left: b.x - padX, top: b.y - padY, right: b.x + b.w + padX, bottom: b.y + b.h + padY }, 1024)).img;
   const k = Math.min(1, 900 / Math.max(w, h));
-  const outlined = await sharp(src).composite([{ input: svg(edge), top: 0, left: 0 }]).resize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))).jpeg({ quality: 85 }).toBuffer({ resolveWithObject: true });
+  // Outline first, then shrink, in two steps: within one sharp pipeline the resize runs before the
+  // composite, and a full-size outline on a shrunk photo fails ("Image to composite must have same
+  // dimensions or smaller") for every photo over 900 px.
+  const drawn = await sharp(src).composite([{ input: svg(edge), top: 0, left: 0 }]).jpeg({ quality: 92 }).toBuffer();
+  const outlined = await sharp(drawn).resize(Math.max(1, Math.round(w * k)), Math.max(1, Math.round(h * k))).jpeg({ quality: 85 }).toBuffer({ resolveWithObject: true });
   return { close, whole: { mime: 'image/jpeg', base64: outlined.data.toString('base64'), width: outlined.info.width, height: outlined.info.height, label: null } };
 }
 
-/** Each region named on its own, up close, by Muse Spark thinking hard (five at a time). Null where a look failed. */
+/** Each region named on its own, up close, by Muse Spark thinking hard (eight at a time). Null where a look failed. */
 async function closeNames(deps: LabelDeps, view: ImagePayload, regions: Array<{ path: string | null; box: Region['box'] }>, object: string | null, vocabulary: string[]): Promise<Array<CloseName | null>> {
   const out: Array<CloseName | null> = regions.map(() => null);
   let next = 0;
   await Promise.all(
-    Array.from({ length: Math.min(5, regions.length) }, async () => {
+    Array.from({ length: Math.min(8, regions.length) }, async () => {
       while (next < regions.length) {
         const i = next++;
         const r = regions[i]!;
@@ -1570,9 +1574,15 @@ export async function nameByMarks(
       const better = !prev || (m.sure && !prev.sure) || (m.sure === prev.sure && normalizeForMatch(region.label) === normalizeForMatch(name) && normalizeForMatch(prev.r.label) !== normalizeForMatch(name));
       if (better) chosen.set(name, { r: region, sure: m.sure });
     }
-    const regions = [...chosen.entries()].map(([name, { r }], i) => ({ ...r, label: name, id: `r${i + 1}` }));
-    diagnostics.push(`Named ${regions.length} of ${marks.length} outlines by their numbers.`);
-    if (regions.length) return { regions, diagnostics };
+    const named = [...chosen.entries()].map(([name, { r }], i) => ({ ...r, label: name, id: `r${i + 1}` }));
+    diagnostics.push(`Named ${named.length} of ${marks.length} outlines by their numbers.`);
+    if (named.length) {
+      // Each label checked by a second, independent look at that part on its own, up close.
+      // What the check removed stays removed: a wrong label is worse than none.
+      const checked = await confirmUpClose(deps, view, named, list, opts.object);
+      diagnostics.push(checked.note);
+      return { regions: checked.regions.map((r, i) => ({ ...r, id: `r${i + 1}` })), diagnostics };
+    }
     // No outline could be named by its number: keep the outlines that were found by their own
     // names instead of leaving the drawing with no labels.
     const own = byOwnName(located.regions, outlined.regions, list);
@@ -1588,6 +1598,85 @@ export async function nameByMarks(
     if (checked?.regions.length) return { regions: checked.regions, diagnostics: [...diagnostics, ...checked.diagnostics] };
     return { regions: byOwnName(located.regions, outlined.regions, list), diagnostics: [...diagnostics, ...(checked?.diagnostics ?? [])] };
   }
+}
+
+/**
+ * A second, independent look at each labelled part of a drawing: the part on its own, up close,
+ * named from the same list without being told the first answer. Agreement confirms a label. A
+ * sure "none of these" removes it. A sure, different name is put to a third look, which chooses
+ * between the two names (or neither). An unsure or failed look leaves the first label as it is.
+ */
+async function confirmUpClose(deps: LabelDeps, view: ImagePayload, regions: Region[], list: string[], object: string): Promise<{ regions: Region[]; note: string }> {
+  const byName = new Map(list.map((n) => [normalizeForMatch(n), n]));
+  const inList = (name: string | null) => {
+    if (!name) return null;
+    const n = normalizeForMatch(stripColour(name));
+    return byName.get(n) ?? [...byName.entries()].find(([k]) => n.includes(k) || k.includes(n))?.[1] ?? null;
+  };
+  const looks: Array<DrawingPart | null> = regions.map(() => null);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(4, regions.length) }, async () => {
+      while (next < regions.length) {
+        const i = next++;
+        const r = regions[i]!;
+        if (!r.path) continue;
+        try {
+          const { close, whole } = await spotlight(view, { path: r.path, box: r.box });
+          const res = await chatStructured({
+            client: deps.client,
+            model: deps.sparkModel,
+            mode: 'json_schema',
+            instructionRole: 'developer',
+            reasoningEffort: 'medium',
+            signal: deps.signal,
+            timeoutMs: deps.timeoutMs,
+            schema: DrawingPartSchema,
+            name: 'drawing_part',
+            system: DRAWING_PART_SYSTEM,
+            user: drawingPartUser(object, list),
+            images: [close, whole],
+          });
+          looks[i] = res.value;
+        } catch (e) {
+          log('info', 'checking one label on the drawing up close failed; the first label is kept', { error: (e as Error).message });
+        }
+      }
+    }),
+  );
+  const kept: Array<{ r: Region; confirmed: boolean }> = [];
+  const disputes: Array<{ r: Region; ask: [string, string] }> = [];
+  let removed = 0;
+  regions.forEach((r, i) => {
+    const look = looks[i];
+    if (!look || !look.sure) return void kept.push({ r, confirmed: false });
+    const other = inList(look.name);
+    if (!look.name || !other) return void removed++;
+    if (sameThing(other, r.label) || normalizeForMatch(other) === normalizeForMatch(r.label)) return void kept.push({ r, confirmed: true });
+    disputes.push({ r, ask: [r.label, other] });
+  });
+  await Promise.all(
+    disputes.map(async (d) => {
+      try {
+        const v = await secondOpinion(deps, view, { path: d.r.path, box: d.r.box }, object, d.ask, Math.random, 'medium');
+        if (v.pick === null) removed++;
+        else kept.push({ r: { ...d.r, label: d.ask[v.pick] }, confirmed: true });
+      } catch {
+        kept.push({ r: d.r, confirmed: false });
+      }
+    }),
+  );
+  // Each name once: a confirmed label before an unconfirmed one.
+  const out: Region[] = [];
+  const taken = new Set<string>();
+  for (const k of kept.sort((a, b) => Number(b.confirmed) - Number(a.confirmed))) {
+    const n = normalizeForMatch(k.r.label);
+    if (taken.has(n)) continue;
+    taken.add(n);
+    out.push(k.r);
+  }
+  const confirmed = kept.filter((k) => k.confirmed).length;
+  return { regions: out, note: `Checked each label again up close: ${confirmed} confirmed${removed ? `, ${removed} removed` : ''}${disputes.length ? `, ${disputes.length} settled by a third look` : ''}.` };
 }
 
 /**

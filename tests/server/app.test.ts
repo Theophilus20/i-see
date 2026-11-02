@@ -14,7 +14,7 @@ import { setLogSink } from '../../server/log';
 import { CircuitBreakers, readSse } from '../../server/meta/http';
 import { InsideResponseSchema, CutawayResponseSchema, VerifyResponseSchema, AskResponseSchema, ScanEventSchema, type ScanEvent } from '../../src/shared/api';
 import { ProfileSchema, type Profile, digestOf } from '../../src/shared/schema';
-import { setSecondOpinion, setMarksAnswer, setCheckAnswer, setCloseAnswer, MockMeta, setDecideAnswer, setMarkNamesBlank, TEST_KEY } from './mock-meta';
+import { setSecondOpinion, setMarksAnswer, setCheckAnswer, setCloseAnswer, MockMeta, setDecideAnswer, setMarkNamesBlank, setDrawingPartAnswer, TEST_KEY } from './mock-meta';
 
 const fx = (name: string) => readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf8');
 const connectorFetch = (async (url: string) => {
@@ -814,6 +814,36 @@ describe('follow-up endpoints', () => {
     for (const r of out.regions) expect(r.box.x + r.box.w).toBeLessThanOrEqual(out.image.width + 1);
     expect(out.regions.every((r) => r.kind === 'mask' && r.path)).toBe(true);
     expect(out.labels).toMatchObject({ expected: ['Boiler', 'Gasket'], correct: ['Boiler', 'Gasket'], problems: [] });
+  });
+
+  it('cutaway: each label is checked again up close; a sure "none of these" removes it', async () => {
+    const { app } = makeApp();
+    const view = scanBody().views[0];
+    const post = () =>
+      app.request('/api/v1/cutaway', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ digest: digestOf(profile), inside: { kind: 'machine', brief: 'A moka pot.', parts: ['Boiler', 'Gasket'] }, view, consent: { sendImages: true, acknowledgedAt: 'x' } }),
+      });
+    try {
+      // Sure that each outline is none of the parts: every label is removed.
+      mock.requests.length = 0;
+      setDrawingPartAnswer(() => ({ looks: 'Drawn metal.', name: null, sure: true }));
+      const none = CutawayResponseSchema.parse(await (await post()).json());
+      expect(none.regions).toEqual([]);
+      const looks = mock.requests.filter((r) => r.body?.response_format?.json_schema?.name === 'drawing_part');
+      expect(looks.length).toBe(2);
+      // Each look sees one part on its own (a close-up and the whole drawing), and the list of names only.
+      expect(looks.every((r) => (r.body.messages[1].content as Array<{ type: string }>).filter((c) => c.type === 'image_url').length === 2)).toBe(true);
+      const asked = String((looks[0]!.body.messages[1].content as Array<{ type: string; text?: string }>).find((c) => c.type === 'text')?.text);
+      expect(asked).toContain('"Boiler", "Gasket"');
+      // Unsure: the first labels stand.
+      setDrawingPartAnswer(() => ({ looks: 'Drawn metal.', name: null, sure: false }));
+      const kept = CutawayResponseSchema.parse(await (await post()).json());
+      expect(kept.regions.map((r) => r.label).sort()).toEqual(['Boiler', 'Gasket']);
+    } finally {
+      setDrawingPartAnswer(null);
+    }
   });
 
   it('cutaway: when no numbered outline can be named, the parts found by their own names are still labelled', async () => {

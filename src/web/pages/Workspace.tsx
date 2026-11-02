@@ -454,6 +454,7 @@ export function Workspace() {
               object={profile}
               onPick={canPick ? pick : undefined}
               labelFor={labelFor}
+              labelsOnTap
             />
           ) : (
             <div className="plate-missing">The photo is not stored for this profile.</div>
@@ -476,7 +477,7 @@ export function Workspace() {
                     ? 'That could not be outlined. Try another spot.'
                     : picking === 'background'
                       ? 'That spot is the background. Tap on the object itself.'
-                    : 'Tap a name to focus on its part, or tap anything else in the photo to add it.'
+                    : 'Tap a number to see its name, or tap anything else in the photo to add it.'
                 : regions.some((r) => r.kind === 'point')
                   ? 'Dashed rings are approximate locations: outlining was not available.'
                   : 'Numbers match the chips beside each finding.'}

@@ -100,7 +100,8 @@ export async function makeCutaway(
     model: sparkModel(cfg, ctx.privacyTier),
     mode: 'json_schema' as const,
     instructionRole: 'developer' as const,
-    reasoningEffort: 'low' as const,
+    // The check of the drawing finds what to correct; medium thinking finds more real errors.
+    reasoningEffort: 'medium' as const,
     signal: ctx.signal,
     timeoutMs: cfg.requestTimeoutMs,
   };
@@ -155,7 +156,7 @@ export async function makeCutaway(
             input.photo ? 'The first image is the photo. The second image is a draft cutaway of it.' : 'This is a draft cutaway illustration.',
             refs.length && input.photo ? `The ${refs.length === 1 ? 'third image is a real reference picture' : 'remaining images are real reference pictures'} of the inside of a ${kw}: make the anatomy match ${refs.length === 1 ? 'it' : 'them'}.` : '',
             `Correct every one of these errors in the draft: ${fix}`,
-            'Keep everything else in the draft exactly as it is: the pose, framing, background, colours, style and every other part. Only the inside is drawn (no skin, fur or outer casing). Every organ stays inside the bones that hold it, at its true size. Anatomy and construction must be true to this exact kind. No text or labels.',
+            'Keep everything else in the draft exactly as it is: the pose, framing, background, colours, style and every other part. Only the inside is drawn (no skin, fur or outer casing). Every organ stays inside the bones that hold it, at its true size. Anatomy and construction must be true to this exact kind. Every part stays a clearly separate shape with its own colour and a clean edge. No text or labels.',
           ]
             .filter(Boolean)
             .join(' '),

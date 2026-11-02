@@ -58,6 +58,15 @@ const freshStages = (): Record<StageId, StageView> =>
   Object.fromEntries(STAGE_IDS.map((id) => [id, { id, label: STAGE_LABEL[id], status: 'pending', model: null, provider: null, ms: null, note: null, startedAt: null }])) as Record<StageId, StageView>;
 
 let abort: AbortController | null = null;
+
+/**
+ * When a scan stops (stopped by the person, or failed), the steps still under way stop too: they
+ * no longer spin or count seconds as if the scan were still going.
+ */
+const settleStages = (stages: Record<StageId, StageView>, status: 'skip' | 'error', note: string): Record<StageId, StageView> =>
+  Object.fromEntries(
+    Object.entries(stages).map(([id, st]) => [id, st.status === 'running' ? { ...st, status, note, ms: st.startedAt ? Date.now() - st.startedAt : st.ms } : st]),
+  ) as Record<StageId, StageView>;
 let stopFollow: (() => void) | null = null;
 let escalationResolver = null as ((ok: boolean) => void) | null;
 
@@ -92,9 +101,11 @@ export const useRun = create<RunStore>((set, get) => {
       case 'profile':
         set({ profile: e.profile });
         break;
-      case 'error':
-        set({ status: e.code === 'cancelled' ? 'cancelled' : 'error', error: { message: friendlyMessage(e.code, e.message), retryable: e.retryable } });
+      case 'error': {
+        const stopped = e.code === 'cancelled';
+        set({ status: stopped ? 'cancelled' : 'error', stages: settleStages(s.stages, stopped ? 'skip' : 'error', stopped ? 'Stopped.' : 'Did not finish.'), error: { message: friendlyMessage(e.code, e.message), retryable: e.retryable } });
         break;
+      }
       case 'done':
         set({ status: 'done' });
         break;
@@ -235,17 +246,19 @@ export const useRun = create<RunStore>((set, get) => {
           );
         });
       } catch (e) {
-        set({ status: 'error', error: { message: userMessage(e, 'The scan could not start. Please try again.'), retryable: true } });
+        // Stopped while the photo was still being sent: that is not a failure.
+        if (get().status === 'cancelled') return;
+        set({ status: 'error', stages: settleStages(get().stages, 'error', 'Did not finish.'), error: { message: userMessage(e, 'The scan could not start. Please try again.'), retryable: true } });
       }
     },
 
     cancel() {
-      const { jobId, mode } = get();
+      const { jobId, mode, stages } = get();
       abort?.abort();
       stopFollow?.();
       escalationResolver?.(false);
       if (mode === 'live' && jobId) void cancelJob(jobId);
-      set({ status: 'cancelled', error: { message: 'Stopped. Nothing was saved.', retryable: true } });
+      set({ status: 'cancelled', stages: settleStages(stages, 'skip', 'Stopped.'), error: { message: 'Stopped. Nothing was saved.', retryable: true } });
     },
 
     answerEscalation(approve) {

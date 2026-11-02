@@ -181,8 +181,9 @@ sentence carries its label:
 | **Unknown** | Nobody can tell from this photo. |
 | **Yours** | Something you added. Never graded. |
 
-**The photo.** Each part is outlined and numbered, with its name down the side. Tap a name
-(or a number in the list below the photo) to focus on that part. Tap anywhere else on the
+**The photo.** Each part is outlined, with a line to its number at the edge of the photo (as
+in a technical drawing), so no names cover it. Tap a number, or a name in the list below the
+photo, to see that part's name and focus on it. Tap anywhere else on the
 object to outline something I SEE missed. If an outline is wrong, select it and choose
 **Remove this outline**, or put it right in [Train](#8-train).
 

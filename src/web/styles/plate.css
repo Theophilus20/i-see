@@ -218,6 +218,13 @@
   outline: none;
   box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--action);
 }
+/* A key: the number alone, at the end of its leader; it opens into the name when chosen. */
+.plate-pill.num-only {
+  padding: 2px;
+}
+.plate-pill.num-only .plate-pill-name {
+  display: none;
+}
 .plate-pill.dot {
   transform: translate(-50%, -50%);
   padding: 2px;

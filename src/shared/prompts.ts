@@ -12,7 +12,7 @@ import { SECTION_TITLE } from './epistemics';
 
 import { planForObject, planReference } from './bodyplans';
 
-export const PROMPT_VERSION = 'isee-2026-11-02.3';
+export const PROMPT_VERSION = 'isee-2026-11-02.4';
 
 const LANGUAGE_NOTE = (language: string) =>
   language.toLowerCase().startsWith('en')
@@ -300,6 +300,7 @@ export function photoCutawayPrompt(digest: Pick<ProfileDigest, 'displayName' | '
     'Draw only what is inside it, in exactly the same pose, position, size, proportions and camera angle as in the photo, so the drawing lines up with the photo when laid over it.',
     INSIDE_ONLY[kind],
     parts ? `Show clearly: ${parts}.` : '',
+    'Draw every inner part as its own clearly separate shape, with its own natural colour and a clean edge, so each part can be told apart from the parts around it. Nothing merged or blurred together.',
     inside?.brief ? `Guidance: ${inside.brief}` : '',
     `Before drawing, look up reference images of the real ${kind === 'living' ? 'skeleton and internal anatomy' : kind === 'natural' ? 'internal structure' : 'internal parts'} of a ${digest.displayName}, so that every part is correct in shape, position and relative size.`,
     'Realistic, richly detailed and accurate, with natural colours and soft studio lighting, like a high-quality illustration in a reference book.',
@@ -308,6 +309,18 @@ export function photoCutawayPrompt(digest: Pick<ProfileDigest, 'displayName' | '
   ]
     .filter(Boolean)
     .join(' ');
+}
+
+/** A second, independent look at one labelled part of a drawing: which of the names it is, up close. */
+export const DRAWING_PART_SYSTEM = 'Return the JSON object that matches the schema. You identify one outlined region of an illustration, judging only from what is drawn inside the outline: its shape, colour and where it sits.';
+
+export function drawingPartUser(object: string, names: string[]): string {
+  return [
+    `The first image is a close-up of an illustration of ${object}. One region is outlined in bright cyan, and everything outside it is darkened. The second image is the whole illustration with the same region outlined, so you can see where it is.`,
+    'First say in a few words what is drawn inside the outline. Then say which one of these parts it is, copying the name exactly:',
+    names.map((n) => `"${n}"`).join(', ') + '.',
+    'Give null if it is none of them, if the outline takes in several different parts, or if it is mostly background. Say sure only if the drawing clearly shows your answer.',
+  ].join('\n');
 }
 
 export const CUTAWAY_REVIEW_SYSTEM = 'Return the JSON object that matches the schema. Be strict and specific: you are checking an illustration for a reference book.';

@@ -37,6 +37,12 @@ export interface PlateProps {
   /** Fine white outlines (as on the home page), with each part's number in its own colour. */
   colourNumbers?: boolean;
   /**
+   * Keyed callouts, as in a technical drawing: each part's leader ends in its number only, so the
+   * names do not cover the photo; a part's name appears in place of its number when it is chosen
+   * (tapped, picked in the list, or pointed at).
+   */
+  labelsOnTap?: boolean;
+  /**
    * What the object is: its own outline (the whole object) is then drawn with a dashed edge and
    * no name pin, since its name is the title and a pin would land on some part and read wrong.
    */
@@ -50,7 +56,7 @@ export const partColour = (id: string) => PART_COLOURS[(Number(id.replace(/\D/g,
 export const regionNumber = (id: string): string => id.replace(/^r/, '');
 
 export const Plate = forwardRef<HTMLDivElement, PlateProps>(function Plate(
-  { src, width, height, alt, regions, active = [], onSelect, onHover, basisFor, outlines = 'all', markers = true, drawIn = false, onPick, className, caption, labelFor, overlay, tint = false, colourNumbers = false, object = null },
+  { src, width, height, alt, regions, active = [], onSelect, onHover, basisFor, outlines = 'all', markers = true, drawIn = false, onPick, className, caption, labelFor, overlay, tint = false, colourNumbers = false, object = null, labelsOnTap = false },
   ref,
 ) {
   const uid = useId().replace(/:/g, '');
@@ -157,6 +163,7 @@ export const Plate = forwardRef<HTMLDivElement, PlateProps>(function Plate(
             onSelect={onSelect}
             onHover={onHover}
             tint={tint || colourNumbers}
+            tapOnly={labelsOnTap}
           />
         ) : (
           markers &&
@@ -204,6 +211,7 @@ function PlateLabels({
   onSelect,
   onHover,
   tint = false,
+  tapOnly = false,
 }: {
   regions: Region[];
   width: number;
@@ -213,6 +221,8 @@ function PlateLabels({
   onSelect?: (id: string) => void;
   onHover?: (id: string | null) => void;
   tint?: boolean;
+  /** Numbers on the leaders; a part's name shows when it is chosen or pointed at. */
+  tapOnly?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [layout, setLayout] = useState<{ w: number; h: number; pos: Record<string, { x: number; y: number; w: number; h: number; ax: number; ay: number; left: boolean }> } | null>(null);
@@ -269,7 +279,7 @@ function PlateLabels({
     const ro = new ResizeObserver(run);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [regions, width, height, labelFor]);
+  }, [regions, width, height, labelFor, tapOnly, active]);
 
   const spot = active.size > 0;
   return (
@@ -297,6 +307,9 @@ function PlateLabels({
         const p = layout?.pos[r.id];
         const where = describeLocation(r.anchor.x, r.anchor.y, width, height);
         const name = labelFor(r);
+        // Numbers only: the key (a number on its leader, as in a technical drawing) opens into the
+        // part's name when the part is chosen or pointed at.
+        const numOnly = tapOnly && !on && !compact;
         const style = compact && !on
           ? { left: `${(r.anchor.x / width) * 100}%`, top: `${(r.anchor.y / height) * 100}%` }
           : p
@@ -307,7 +320,7 @@ function PlateLabels({
             key={r.id}
             data-id={r.id}
             type="button"
-            className={`plate-pill ${on ? 'on' : ''} ${spot && !on ? 'dim' : ''} ${compact && !on ? 'dot' : ''} ${r.kind === 'point' ? 'approx' : ''}`}
+            className={`plate-pill ${on ? 'on' : ''} ${spot && !on ? 'dim' : ''} ${compact && !on ? 'dot' : ''} ${numOnly ? 'num-only' : ''} ${r.kind === 'point' ? 'approx' : ''}`}
             style={style}
             onClick={(e) => {
               e.stopPropagation();
@@ -319,6 +332,7 @@ function PlateLabels({
             onBlur={() => onHover?.(null)}
             aria-pressed={on}
             aria-label={`${regionNumber(r.id)}: ${name}, ${r.kind === 'point' ? 'approximate location' : `${describeSize(r.area)} area`} at ${where}`}
+            title={(compact || tapOnly) && !on ? name : undefined}
           >
             <b className="num" style={tint ? { background: partColour(r.id), color: '#14181c' } : undefined}>
               {regionNumber(r.id)}

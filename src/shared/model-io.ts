@@ -414,6 +414,14 @@ export const PartMarksSchema = z.object({
 });
 export type PartMarks = z.infer<typeof PartMarksSchema>;
 
+/** One labelled part of a drawing, seen up close on its own: which of the names it is. */
+export const DrawingPartSchema = z.object({
+  looks: z.string().describe('One short sentence: what is drawn inside the outline (shape, colour), before naming it.'),
+  name: z.string().nullable().describe('The one name from the list that is the part inside the outline, copied exactly; null if it is none of them, several parts at once, or mostly background.'),
+  sure: z.boolean().describe('True only if the drawing clearly shows your answer (the name, or that it is none of them).'),
+});
+export type DrawingPart = z.infer<typeof DrawingPartSchema>;
+
 /** One outlined region, seen up close on its own: what part it is, and how well the outline fits it. */
 export const CloseNameSchema = z.object({
   looks: z.string().describe('One short sentence: what the outlined pixels show (shape, material, colour), before naming it.'),

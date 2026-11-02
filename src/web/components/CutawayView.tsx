@@ -205,6 +205,7 @@ export function CutawayView({
               outlines="active"
               markers
               labelFor={(r) => cap(r.label)}
+              labelsOnTap
               onSelect={(id) => {
                 const r = regions.find((x) => x.id === id);
                 if (r) setHover((h) => (h === cap(r.label) ? null : cap(r.label)));
@@ -254,7 +255,7 @@ export function CutawayView({
               {hoverInfo ? ` — ${hoverInfo.what} ${hoverInfo.how}` : ''}
             </div>
           )}
-          {regions.length > 0 && <p className="small muted">Tap a name to see where it is and what it does.</p>}
+          {regions.length > 0 && <p className="small muted">Tap a number on the drawing, or a name below, to see the part and what it does.</p>}
           {notDrawn.length > 0 && <p className="small muted">Not shown in this drawing: {notDrawn.join(', ')}. You can read about them in the part cards below.</p>}
           {older && <p className="small muted">This drawing was made by an earlier version, with its labels painted in. Draw it again to get labels that I SEE places and checks itself.</p>}
           {!regions.length && !older && <p className="small muted">The parts could not be marked on this drawing this time. Draw it again to try once more.</p>}

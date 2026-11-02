@@ -212,6 +212,11 @@ const INSIDE = {
 const GLANCE = { label: 'Moka pot', confidence: 0.82, hint: null };
 /** What the deep check between close candidates answers ("cannot tell" leaves the doubt to Muse Wonder). */
 let decideAnswer = 'Moka pot';
+let drawingPartAnswer: ((names: string[]) => { looks: string; name: string | null; sure: boolean }) | null = null;
+/** How the close look at each labelled part of a drawing answers (default: unsure). */
+export function setDrawingPartAnswer(f: typeof drawingPartAnswer): void {
+  drawingPartAnswer = f;
+}
 let markNamesBlank = false;
 /** The drawing's numbered outlines all come back unnamed (the model could not tell). */
 export function setMarkNamesBlank(v: boolean): void {
@@ -299,6 +304,10 @@ function pickOutput(name: string | null, system: string, user: string, unsure: b
     case 'cutaway_review': {
       const shown = (/Parts it should show: (.+)\./.exec(user)?.[1] ?? '').split(', ').filter(Boolean);
       return { matchesPhoto: 4, accuracy: 4, shown, problems: [], fix: null };
+    }
+    case 'drawing_part': {
+      const names = [...(user.split('\n')[2] ?? '').matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
+      return drawingPartAnswer ? drawingPartAnswer(names) : { looks: 'A drawn part.', name: null, sure: false };
     }
     case 'mark_names': {
       // Names each numbered outline in order (the real model judges from the picture).

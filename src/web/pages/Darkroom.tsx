@@ -142,6 +142,7 @@ export function Darkroom() {
               colourNumbers
               object={top[0] ? { displayName: top[0].name, category: top[0].category ?? 'other', candidates: top } : null}
               labelFor={(r) => r.label.charAt(0).toUpperCase() + r.label.slice(1)}
+              labelsOnTap
             />
             <div className="scan-fx" aria-hidden="true">
               <span className="sfx-grid" />
@@ -152,7 +153,7 @@ export function Darkroom() {
               <span className="sfx-corner br" />
               <span className="sfx-tele top">
                 <span className="sfx-dot" />
-                {run.status === 'done' ? 'Analysis complete' : run.status === 'running' ? (current ? current.label : 'Starting') : run.status === 'error' ? 'Stopped' : 'Paused'}
+                {run.status === 'done' ? 'Analysis complete' : run.status === 'running' ? (current ? current.label : 'Starting') : run.status === 'error' || run.status === 'cancelled' ? 'Stopped' : 'Paused'}
                 <span className="sfx-sep" />
                 <span className="num">
                   {String(doneCount).padStart(2, '0')}/{String(stages.length).padStart(2, '0')}

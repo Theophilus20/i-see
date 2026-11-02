@@ -404,3 +404,16 @@ describe('a disagreement settled by a third look', () => {
     expect(afterThirdLook(null, ['Spout', 'Chamber'], { sure: true, fits: 'partly' })).toBeNull();
   });
 });
+
+import { spotlight } from '../../server/meta/label';
+describe('a region shown on its own, up close', () => {
+  it('works on a full-size photo (over 900 px), not only on small ones', async () => {
+    for (const [w, h] of [[1600, 1200], [1226, 1280], [640, 480]] as Array<[number, number]>) {
+      const base64 = (await sharp({ create: { width: w, height: h, channels: 3, background: '#888' } }).jpeg().toBuffer()).toString('base64');
+      const view = { mime: 'image/jpeg' as const, base64, width: w, height: h, label: null };
+      const { close, whole } = await spotlight(view, { path: `M${w * 0.4} ${h * 0.4}h${w * 0.1}v${h * 0.1}h-${w * 0.1}Z`, box: { x: w * 0.4, y: h * 0.4, w: w * 0.1, h: h * 0.1 } });
+      expect(Math.max(whole.width, whole.height)).toBeLessThanOrEqual(900);
+      expect(close.base64.length).toBeGreaterThan(100);
+    }
+  });
+});
