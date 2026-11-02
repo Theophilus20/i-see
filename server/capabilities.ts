@@ -81,10 +81,10 @@ export function documentedCapabilities(cfg: Config): ModelCapability[] {
       hosting: 'meta-model-api',
       available: metaOn,
       verified: 'documented',
-      inputs: ['text'],
+      inputs: ['text', 'image'],
       outputs: ['image'],
       dataUse: 'unknown',
-      notes: 'Muse Image with store:false. Receives a text description of the object class only, never the photo. Output is always labelled as a generated illustration.',
+      notes: 'Muse Image with store:false. Draws what is inside the person\'s object from their photo (sent only with their consent) and public-domain reference pictures. Always shown labelled as a drawing.',
     },
     {
       role: 'transcribe',

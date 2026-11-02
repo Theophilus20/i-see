@@ -45,3 +45,34 @@ describe('the models this key can use', () => {
     expect(failureKind(new Error('odd'))).toBe('other');
   });
 });
+
+import { modelCheck, runModelCheck } from '../../server/meta/models';
+import { loadConfig } from '../../server/config';
+describe('the start-up model check', () => {
+  const cfgWith = () => loadConfig({ MODEL_API_KEY: 'LLM|1|secretvalue', META_API_BASE: 'https://x/v1' } as NodeJS.ProcessEnv);
+  const lines: string[] = [];
+  const log = (_l: string, msg: string) => void lines.push(msg);
+
+  it('switches to the versions the key has, and reports it for the health page', async () => {
+    const cfg = cfgWith();
+    const list = (async () => new Response(JSON.stringify({ data: ['muse-spark-1.2', 'sam-3.1', 'muse-wonder-1.0', 'muse-image-1.0', 'muse-voice-transcribe-1.0', 'muse-spark-1.2-contributor'].map((id) => ({ id })) }))) as unknown as typeof fetch;
+    const r = await runModelCheck(cfg, log, list);
+    expect(r.state).toBe('done');
+    expect(cfg.meta.models.spark).toBe('muse-spark-1.2');
+    expect(modelCheck(cfg).using.spark).toBe('muse-spark-1.2');
+    expect(lines.join(' | ')).toMatch(/Checking which models.*Models this key can use.*muse-spark-1.3 is not available to this key: using muse-spark-1.2/);
+  });
+
+  it('says plainly when the key is refused, and never throws', async () => {
+    const cfg = cfgWith();
+    lines.length = 0;
+    const refused = (async () => new Response('{}', { status: 401 })) as unknown as typeof fetch;
+    expect((await runModelCheck(cfg, log, refused)).state).toBe('failed');
+    expect(lines.join(' ')).toMatch(/did not accept MODEL_API_KEY/);
+    const broken = (async () => {
+      throw new Error('socket hang up');
+    }) as unknown as typeof fetch;
+    expect((await runModelCheck(cfg, log, broken)).state).toBe('failed');
+    expect(cfg.meta.models.spark).toBe('muse-spark-1.3');
+  });
+});

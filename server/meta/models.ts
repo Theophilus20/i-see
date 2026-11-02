@@ -6,6 +6,7 @@
  * the log says exactly what is in use.
  */
 import type { Config } from '../config';
+import type { ModelCheck } from '../../src/shared/api';
 
 export type ModelRoles = Config['meta']['models'];
 export const MODEL_SETTING: Record<keyof ModelRoles, string> = {
@@ -77,4 +78,41 @@ export function closestModels(models: ModelRoles, available: string[]): {
     else unlisted.push({ role, name });
   }
   return { switched, unlisted };
+}
+
+let check: ModelCheck = { state: 'not-run', using: {}, listed: [], switched: [], unlisted: [], status: null, error: null, at: null };
+/** The latest model check, for the health page. */
+export function modelCheck(cfg: Config): ModelCheck {
+  return { ...check, using: { ...cfg.meta.models } };
+}
+
+/**
+ * Asks the service which models this key can use, writes the answer to the log, and switches any
+ * name the key does not have to the closest one it does. Never throws.
+ */
+export async function runModelCheck(cfg: Config, log: (level: 'info' | 'warn' | 'error', msg: string, data?: Record<string, unknown>) => void, fetchImpl: typeof fetch = fetch): Promise<ModelCheck> {
+  if (!cfg.meta.apiKey) return modelCheck(cfg);
+  check = { ...check, state: 'checking', at: new Date().toISOString() };
+  log('info', 'Checking which models this key can use');
+  try {
+    const r = await listModels(cfg.meta.baseUrl, cfg.meta.apiKey, fetchImpl);
+    if (!('ids' in r)) {
+      check = { ...check, state: 'failed', status: r.status, error: r.error.slice(0, 200) };
+      if (r.status === 401 || r.status === 403) log('error', 'The Meta Model API did not accept MODEL_API_KEY. Check that it is copied exactly, with no quotes or spaces.', { status: r.status });
+      else log('warn', 'Could not list the models this key can use; using the configured names.', { status: r.status, error: r.error });
+      return modelCheck(cfg);
+    }
+    log('info', 'Models this key can use', { models: r.ids.slice(0, 60) });
+    const { switched, unlisted } = r.ids.length ? closestModels(cfg.meta.models, r.ids) : { switched: [], unlisted: [] };
+    for (const x of switched) {
+      cfg.meta.models[x.role] = x.to;
+      log('warn', `${x.from} is not available to this key: using ${x.to} instead. Set ${MODEL_SETTING[x.role]} to choose another.`, { setting: MODEL_SETTING[x.role] });
+    }
+    for (const u of unlisted) log('warn', `${u.name} is not in this key's model list and has no close version there; calls to it may fail. Set ${MODEL_SETTING[u.role]} to a model from the list.`, { setting: MODEL_SETTING[u.role] });
+    check = { ...check, state: 'done', listed: r.ids.slice(0, 100), switched, unlisted, status: 200, error: null };
+  } catch (e) {
+    check = { ...check, state: 'failed', error: (e as Error).message.slice(0, 200) };
+    log('warn', 'The model check failed; using the configured names.', { error: (e as Error).message });
+  }
+  return modelCheck(cfg);
 }

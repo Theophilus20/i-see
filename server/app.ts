@@ -52,6 +52,7 @@ import { OpenWeightTasks } from './openweight/tasks';
 import { RateLimiter } from './ratelimit';
 import { SourceRetriever } from './retrieval';
 import { groundedSearch, insideResearch } from './retrieval/search';
+import { modelCheck } from './meta/models';
 
 export interface AppDeps {
   cfg: Config;
@@ -116,7 +117,13 @@ export function createApp(deps: AppDeps) {
     }
   }
 
-  const capabilities = loadCapabilities(cfg);
+  // The capability table follows the model names in use (the start-up check may switch them).
+  let caps = { key: '', list: [] as ReturnType<typeof loadCapabilities> };
+  const capabilitiesNow = () => {
+    const key = JSON.stringify(cfg.meta.models);
+    if (caps.key !== key) caps = { key, list: loadCapabilities(cfg) };
+    return caps.list;
+  };
   const jobs = new JobStore();
   const scanLimiter = new RateLimiter(Math.max(1, Math.round(cfg.ratePerMinute / 3)));
   const callLimiter = new RateLimiter(cfg.ratePerMinute);
@@ -132,9 +139,10 @@ export function createApp(deps: AppDeps) {
     features: { segment: !!meta, voice: !!meta, illustrate: !!meta, searchGrounding: !!meta && cfg.searchGrounding, resolve: anyRoute },
     limits: { maxImageBytes: cfg.maxImageBytes, maxViews: cfg.maxViews, maxAudioSeconds: cfg.maxAudioSeconds, ratePerMinute: cfg.ratePerMinute },
     privacyTier: cfg.privacyTier,
-    capabilities,
+    capabilities: capabilitiesNow(),
     connectors: new SourceRetriever({ connectors: cfg.connectors, search: searchFor(cfg.privacyTier) }).connectorIds,
     serverStoresImages: false,
+    ...(cfg.meta.apiKey ? { modelCheck: modelCheck(cfg) } : {}),
   });
 
   // -------------------------------------------------------------------------

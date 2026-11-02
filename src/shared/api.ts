@@ -265,6 +265,21 @@ export interface HealthInfo {
   /** Which retrieval connectors are enabled. */
   connectors: string[];
   serverStoresImages: false;
+  /** What the Meta Model API said, at start-up, about the models this key can use. */
+  modelCheck?: ModelCheck;
+}
+
+export interface ModelCheck {
+  state: 'not-run' | 'checking' | 'done' | 'failed';
+  /** The model names in use now, by role. */
+  using: Record<string, string>;
+  /** The models the key can use, as the service listed them. */
+  listed: string[];
+  switched: Array<{ role: string; from: string; to: string }>;
+  unlisted: Array<{ role: string; name: string }>;
+  status: number | null;
+  error: string | null;
+  at: string | null;
 }
 
 export interface ApiErrorBody {
