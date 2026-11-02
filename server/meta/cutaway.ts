@@ -178,8 +178,16 @@ export async function makeCutaway(
   const reviewOut = r1 ? { matchesPhoto: clamp5(r1.matchesPhoto), accuracy: clamp5(r1.accuracy), problems: r1.problems.slice(0, 5).map((p) => sanitizeText(p, 200)), redrawn } : null;
 
   // 3. Find each part that is drawn, outline it and check it; the app shows the labels.
-  const shownSet = new Set((r1?.shown ?? []).map((s) => normalizeForMatch(s)));
-  const toFind = (shownSet.size ? parts.filter((p) => shownSet.has(normalizeForMatch(p))) : parts).slice(0, 14);
+  // The check lists the parts it can see clearly. Its names may differ a little from ours ("steel
+  // shaft" for "shaft"), so they are matched loosely; and when it names fewer than two of them,
+  // every part is still looked for (an outline is only kept where a part is actually found).
+  const shownList = (r1?.shown ?? []).map((s) => normalizeForMatch(s)).filter(Boolean);
+  const isShown = (p: string) => {
+    const n = normalizeForMatch(p);
+    return shownList.some((s) => s === n || s.includes(n) || n.includes(s));
+  };
+  const shownParts = parts.filter(isShown);
+  const toFind = (shownParts.length >= Math.min(2, parts.length) ? shownParts : parts).slice(0, 14);
   let regions: Region[] = [];
   let labels: CutawayResult['labels'] = null;
   if (toFind.length) {

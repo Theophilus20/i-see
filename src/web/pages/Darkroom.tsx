@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link, useLocation } from 'wouter';
 import { STAGE_IDS } from '@shared/schema';
 import { Icon } from '../components/Icon';
@@ -125,7 +125,10 @@ export function Darkroom() {
 
       <div className="darkroom-grid">
         <div className="darkroom-plate">
-          <div className={`scan-hud ${run.status === 'running' ? 'scanning' : ''} ${run.status === 'done' ? 'complete' : ''} ${run.regions.length ? 'has-regions' : ''}`}>
+          <div
+            className={`scan-hud ${run.status === 'running' ? 'scanning' : ''} ${run.status === 'done' ? 'complete' : ''} ${run.regions.length ? 'has-regions' : ''}`}
+            style={{ '--ar': dims.width / Math.max(1, dims.height) } as CSSProperties}
+          >
             <Plate
               src={run.photoUrls[0]!}
               width={dims.width}

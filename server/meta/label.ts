@@ -1159,6 +1159,8 @@ export async function labelImage(
     taught?: Array<{ from: string; to: string }>;
     /** Name each region a second time, on its own and up close (default true; false on a quick look). */
     twoLooks?: boolean;
+    /** How hard Muse Spark thinks at each step: 'high' (photos, the default) or 'medium' (drawings). */
+    effort?: 'high' | 'medium';
   },
 ): Promise<{ regions: Region[]; diagnostics: string[] }> {
   const diagnostics: string[] = [];
@@ -1168,7 +1170,7 @@ export async function labelImage(
   opts = { ...opts, vocabulary };
   // Muse Spark thinks hard at every step of labelling: where each part is, what each region is,
   // and the checks. Accuracy matters more here than a few seconds.
-  const spark = { client: deps.client, model: deps.sparkModel, mode: 'json_schema' as const, instructionRole: 'developer' as const, reasoningEffort: 'high' as 'high' | 'medium', signal: deps.signal, timeoutMs: deps.timeoutMs };
+  const spark = { client: deps.client, model: deps.sparkModel, mode: 'json_schema' as const, instructionRole: 'developer' as const, reasoningEffort: (opts.effort ?? 'high') as 'high' | 'medium', signal: deps.signal, timeoutMs: deps.timeoutMs };
 
   // 1. Where is each part?
   let items: Item[] = [];
@@ -1468,7 +1470,9 @@ export async function nameByMarks(
   const list = [...new Set(names.map((n) => sanitizeText(n, 80)).filter(Boolean))].slice(0, 14);
   const diagnostics: string[] = [];
   const [located, outlined] = await Promise.all([
-    labelImage(deps, view, list, { object: opts.object, viewIndex: 0, source: 'sam', verify: false, max: 14, wholeFirst: false, vocabulary: opts.vocabulary }).catch((e: unknown) => {
+    // A drawing needs no more than medium thinking: at high, the long answers can run out of
+    // time and leave the drawing with no labels at all.
+    labelImage(deps, view, list, { object: opts.object, viewIndex: 0, source: 'sam', verify: false, max: 14, wholeFirst: false, vocabulary: opts.vocabulary, effort: 'medium' }).catch((e: unknown) => {
       log('warn', 'locating parts by name failed', { error: (e as Error).message });
       return { regions: [] as Region[], diagnostics: [] as string[] };
     }),
@@ -1533,11 +1537,43 @@ export async function nameByMarks(
     }
     const regions = [...chosen.entries()].map(([name, { r }], i) => ({ ...r, label: name, id: `r${i + 1}` }));
     diagnostics.push(`Named ${regions.length} of ${marks.length} outlines by their numbers.`);
-    return { regions, diagnostics };
+    if (regions.length) return { regions, diagnostics };
+    // No outline could be named by its number: keep the outlines that were found by their own
+    // names instead of leaving the drawing with no labels.
+    const own = byOwnName(located.regions, outlined.regions, list);
+    if (own.length) {
+      log('info', 'no numbered outline was named; using the parts as located by name', { parts: own.length });
+      diagnostics.push(`Used ${own.length} part${own.length === 1 ? '' : 's'} as located by name.`);
+    }
+    return { regions: own, diagnostics };
   } catch (e) {
     log('warn', 'naming the numbered outlines failed; using the parts as located', { error: (e as Error).message });
     // Fall back to the outlines found by name, checked the usual way.
-    const checked = await labelImage(deps, view, list, { object: opts.object, viewIndex: 0, source: 'sam', verify: true, max: 14, wholeFirst: false, vocabulary: opts.vocabulary });
-    return { regions: checked.regions, diagnostics: [...diagnostics, ...checked.diagnostics] };
+    const checked = await labelImage(deps, view, list, { object: opts.object, viewIndex: 0, source: 'sam', verify: true, max: 14, wholeFirst: false, vocabulary: opts.vocabulary, effort: 'medium' }).catch(() => null);
+    if (checked?.regions.length) return { regions: checked.regions, diagnostics: [...diagnostics, ...checked.diagnostics] };
+    return { regions: byOwnName(located.regions, outlined.regions, list), diagnostics: [...diagnostics, ...(checked?.diagnostics ?? [])] };
   }
+}
+
+/**
+ * The outlines found by their own names, one per name: those located in the drawing by name
+ * first, then those SAM outlined from the name with a fair score. Used only when the numbered
+ * outlines could not be named.
+ */
+function byOwnName(located: Region[], outlined: Region[], list: string[]): Region[] {
+  const byName = new Map(list.map((n) => [normalizeForMatch(n), n]));
+  const nameOf = (label: string) => {
+    const n = normalizeForMatch(label);
+    return byName.get(n) ?? [...byName.entries()].find(([k]) => n.includes(k) || k.includes(n))?.[1] ?? null;
+  };
+  const out: Region[] = [];
+  const taken = new Set<string>();
+  for (const r of [...located, ...outlined.filter((x) => (x.confidence ?? 0) >= 0.5)]) {
+    if (r.kind !== 'mask' || !r.path || r.area >= 0.6) continue;
+    const name = nameOf(r.label);
+    if (!name || taken.has(name)) continue;
+    taken.add(name);
+    out.push({ ...r, label: name, id: `r${out.length + 1}` });
+  }
+  return out;
 }

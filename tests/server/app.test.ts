@@ -14,7 +14,7 @@ import { setLogSink } from '../../server/log';
 import { CircuitBreakers, readSse } from '../../server/meta/http';
 import { InsideResponseSchema, CutawayResponseSchema, VerifyResponseSchema, AskResponseSchema, ScanEventSchema, type ScanEvent } from '../../src/shared/api';
 import { ProfileSchema, type Profile, digestOf } from '../../src/shared/schema';
-import { setSecondOpinion, setMarksAnswer, setCheckAnswer, setCloseAnswer, MockMeta, setDecideAnswer, TEST_KEY } from './mock-meta';
+import { setSecondOpinion, setMarksAnswer, setCheckAnswer, setCloseAnswer, MockMeta, setDecideAnswer, setMarkNamesBlank, TEST_KEY } from './mock-meta';
 
 const fx = (name: string) => readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), 'utf8');
 const connectorFetch = (async (url: string) => {
@@ -794,7 +794,10 @@ describe('follow-up endpoints', () => {
     // Each part is located in the drawing, outlined and checked, and named exactly.
     // Candidates are outlined first (located by name, and outlined from text), then each numbered
     // outline is named by choosing from the list: the picture shows numbers only.
-    expect(mock.requests.some((r) => r.body?.response_format?.json_schema?.name === 'ground' && JSON.stringify(r.body.messages).includes('the inside of a'))).toBe(true);
+    const ground = mock.requests.find((r) => r.body?.response_format?.json_schema?.name === 'ground' && JSON.stringify(r.body.messages).includes('the inside of a'));
+    expect(ground).toBeTruthy();
+    // A drawing is located with medium thinking (high can run out of time and leave no labels).
+    expect(ground!.body.reasoning_effort).toBe('medium');
     expect(mock.requests.some((r) => r.body?.model === 'sam-3.1' && String(r.body.input[0].content[0].text) === 'boiler')).toBe(true);
     const marks = mock.requests.find((r) => r.body?.response_format?.json_schema?.name === 'mark_names')!;
     expect(JSON.stringify(marks.body.messages)).toContain('Names to choose from');
@@ -811,6 +814,24 @@ describe('follow-up endpoints', () => {
     for (const r of out.regions) expect(r.box.x + r.box.w).toBeLessThanOrEqual(out.image.width + 1);
     expect(out.regions.every((r) => r.kind === 'mask' && r.path)).toBe(true);
     expect(out.labels).toMatchObject({ expected: ['Boiler', 'Gasket'], correct: ['Boiler', 'Gasket'], problems: [] });
+  });
+
+  it('cutaway: when no numbered outline can be named, the parts found by their own names are still labelled', async () => {
+    const { app } = makeApp();
+    const view = scanBody().views[0];
+    setMarkNamesBlank(true);
+    try {
+      const res = await app.request('/api/v1/cutaway', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ digest: digestOf(profile), inside: { kind: 'machine', brief: 'A moka pot.', parts: ['Boiler', 'Gasket'] }, view, consent: { sendImages: true, acknowledgedAt: 'x' } }),
+      });
+      const out = CutawayResponseSchema.parse(await res.json());
+      expect(out.regions.map((r) => r.label).sort()).toEqual(['Boiler', 'Gasket']);
+      expect(out.regions.every((r) => r.kind === 'mask' && r.path)).toBe(true);
+    } finally {
+      setMarkNamesBlank(false);
+    }
   });
 
   it('cutaway of an animal: draws and labels its real skeleton and organs, never outside parts or its own name', async () => {

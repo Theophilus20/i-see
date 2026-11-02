@@ -212,6 +212,11 @@ const INSIDE = {
 const GLANCE = { label: 'Moka pot', confidence: 0.82, hint: null };
 /** What the deep check between close candidates answers ("cannot tell" leaves the doubt to Muse Wonder). */
 let decideAnswer = 'Moka pot';
+let markNamesBlank = false;
+/** The drawing's numbered outlines all come back unnamed (the model could not tell). */
+export function setMarkNamesBlank(v: boolean): void {
+  markNamesBlank = v;
+}
 export function setDecideAnswer(a: string): void {
   decideAnswer = a;
 }
@@ -298,7 +303,7 @@ function pickOutput(name: string | null, system: string, user: string, unsure: b
     case 'mark_names': {
       // Names each numbered outline in order (the real model judges from the picture).
       const names = [...(/Names to choose from: (.+)\./.exec(user)?.[1] ?? '').matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
-      return { marks: names.map((name, i) => ({ n: i + 1, name, sure: true })) };
+      return { marks: names.map((name, i) => ({ n: i + 1, name: markNamesBlank ? null : name, sure: !markNamesBlank })) };
     }
     case 'decide':
       return {

@@ -896,9 +896,14 @@
 }
 .darkroom-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.85fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 0.95fr);
   gap: clamp(20px, 3vw, 40px);
   align-items: start;
+}
+/* The photo being examined fits on the screen with its frame: never taller than about 70% of
+   the window (a wide photo is limited by the column instead). */
+.darkroom-plate .scan-hud {
+  max-width: min(100%, calc(70vh * var(--ar, 1.333) + 20px));
 }
 .darkroom .plate-frame {
   background: #1f1f1d;
