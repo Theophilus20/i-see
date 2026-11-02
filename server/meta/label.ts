@@ -28,7 +28,7 @@ import type { ImagePayload } from '../../src/shared/tasks';
 import { normalizeForMatch, sanitizeText } from '../../src/shared/text';
 import type { HttpClient } from './http';
 import { log } from '../log';
-import { cleanRaster, coarseMask, dilate, fullRaster, interiorPoint, maskGeometry, positionalNames, runSam, samSegment, scalePath, tidyRegions } from './sam';
+import { cleanRaster, coarseMask, dilate, fullRaster, interiorPoint, maskGeometry, positionalNames, runSam, samSegment, scalePath, tidyRegions, unionGeometry } from './sam';
 import { chatStructured } from './structured';
 import { strokeNumber } from './digits';
 
@@ -852,6 +852,16 @@ export function settleName(
   return { ask: [a, b], fits: close.fits };
 }
 
+/**
+ * The name a disputed region ends with after the third look. The name it chose; or, when it chose
+ * neither, the close look's name if that look was sure and the outline fits it well (the part is
+ * shown rather than left out); otherwise none, and the region is left out.
+ */
+export function afterThirdLook(pick: 0 | 1 | null, ask: [string, string], close: { sure: boolean; fits: CloseName['fits'] }): string | null {
+  if (pick !== null) return ask[pick];
+  return close.sure && close.fits === 'well' ? ask[1] : null;
+}
+
 /** Not a part of this object, whatever the region looks like. */
 const NOT_A_PART = /^(?:background|backdrop|floor|ground|road|street|pavement|table|tabletop|desk|wall|sky|grass|surface|shadow|reflection|plant pot|flower pot|pot|planter|potting soil|soil|dirt|compost|mulch|hand|finger|fingers|person|people|another leaf|other leaf|neighbouring leaf|stand|paddock stand)$/;
 
@@ -897,7 +907,8 @@ async function segmentsRoute(
   const seeds: Array<{ x: number; y: number }> = [];
   for (const it of items) if (it.rank !== 0) for (const b of it.boxes) seeds.push({ x: Math.round((b.left + b.right) / 2), y: Math.round((b.top + b.bottom) / 2) });
   const objPx = Math.max(1, (whole?.area ?? 1) * W * H);
-  const step = Math.max(8, Math.sqrt(objPx / 32));
+  // About 48 points over the object, so small parts (a switch, a screw, a badge) get one too.
+  const step = Math.max(8, Math.sqrt(objPx / 48));
   for (let y = objBox.y + step / 2; y < objBox.y + objBox.h; y += step)
     for (let x = objBox.x + step / 2; x < objBox.x + objBox.w; x += step) {
       const xi = Math.min(W - 1, Math.round(x));
@@ -906,7 +917,7 @@ async function segmentsRoute(
       if (seeds.some((p) => Math.hypot(p.x - xi, p.y - yi) < step * 0.5)) continue;
       seeds.push({ x: xi, y: yi });
     }
-  const points = seeds.slice(0, 48);
+  const points = seeds.slice(0, 64);
 
   // 3. The region under each point, and each part found by its name, both traced by SAM 3.1.
   const [pointMasks, text] = await Promise.all([pointOutlines(deps, view, points), conceptOutlines(deps, view, items)]);
@@ -970,7 +981,7 @@ async function segmentsRoute(
     for (let k = 0; k < own.length; k++) if (x.c[k]) claimed[k] = 1;
     regions.push({ ...x, own, ownN });
   }
-  const marks = regions.sort((a, b) => Number(b.fromName) - Number(a.fromName) || b.ownN - a.ownN).slice(0, 24);
+  const marks = regions.sort((a, b) => Number(b.fromName) - Number(a.fromName) || b.ownN - a.ownN).slice(0, 30);
   if (!marks.length) return null;
   diagnostics.push(`Traced ${marks.length} region${marks.length === 1 ? '' : 's'} of the object from the photo.`);
   // Each dot on its own part, found on the full-resolution mask.
@@ -1017,7 +1028,7 @@ async function segmentsRoute(
   let parts: F[] = [];
   let dropped = 0;
   let confirmed = 0;
-  const disputes: Array<{ f: F; ask: [string, string]; fits: CloseName['fits'] }> = [];
+  const disputes: Array<{ f: F; ask: [string, string]; fits: CloseName['fits']; sure: boolean }> = [];
   const keepPart = (f: F, name: string, sure: boolean, fits: CloseName['fits'] | null) => {
     const conf = Math.min(1, Math.max(f.confidence ?? 0, sure ? 0.9 : 0) * (fits === 'partly' ? 0.85 : 1));
     parts.push({ ...f, name, label: name, confidence: conf, agreed: f.agreed || sure });
@@ -1027,7 +1038,7 @@ async function segmentsRoute(
     const first = raw ? cleanPartName(raw, opts.object) : '';
     const settled = settleName(first, close[i] ?? null, opts.object, isPart);
     if (!settled) return void dropped++;
-    if ('ask' in settled) return void disputes.push({ f, ask: settled.ask, fits: settled.fits });
+    if ('ask' in settled) return void disputes.push({ f, ask: settled.ask, fits: settled.fits, sure: !!close[i]?.sure });
     if (settled.confirmed) confirmed++;
     keepPart(f, settled.name, settled.confirmed, settled.fits);
   });
@@ -1039,10 +1050,11 @@ async function segmentsRoute(
         const d = disputes[next++]!;
         try {
           const v = await secondOpinion(deps, view, { path: d.f.path, box: d.f.box }, opts.object, d.ask, Math.random, 'high');
-          if (v.pick === null) dropped++;
+          const name = afterThirdLook(v.pick, d.ask, { sure: d.sure, fits: d.fits });
+          if (name === null) dropped++;
           else {
-            confirmed++;
-            keepPart(d.f, d.ask[v.pick], true, d.fits);
+            if (v.pick !== null) confirmed++;
+            keepPart(d.f, name, v.pick !== null, d.fits);
           }
         } catch {
           // No third look: the close look named this region on its own, so its name is kept.
@@ -1068,28 +1080,51 @@ async function segmentsRoute(
     const iy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
     return (ix * iy) / Math.max(1, Math.min(a.w * a.h, b.w * b.h)) > 0.6;
   };
+  // Each region's own mask, to join pieces into one outline.
+  const maskOf = new Map(marked.map((f, i) => [f.concept, marks[i]!.m]));
   const merged: F[] = [];
+  const piecesOf = new Map<F, MaskRec[]>();
+  const own = (f: F) => {
+    const m = maskOf.get(f.concept);
+    return m ? [m] : [];
+  };
   for (const f of parts.sort((a, b) => b.area - a.area)) {
     const same = merged.find((m) => normalizeForMatch(m.name) === normalizeForMatch(f.name) && near(m.box, f.box));
     if (!same) {
-      merged.push({ ...f });
+      const c = { ...f };
+      merged.push(c);
+      piecesOf.set(c, own(f));
       continue;
     }
     if (overlapping(same.box, f.box) && (same.agreed || f.agreed)) {
-      if (f.agreed && !same.agreed) Object.assign(same, { ...f });
+      if (f.agreed && !same.agreed) {
+        Object.assign(same, { ...f });
+        piecesOf.set(same, own(f));
+      }
+      continue;
+    }
+    const pieces = [...(piecesOf.get(same) ?? []), ...own(f)];
+    piecesOf.set(same, pieces);
+    const confidence = Math.max(same.confidence ?? 0, f.confidence ?? 0);
+    const agreed = same.agreed || f.agreed;
+    // One smooth outline around all the pieces, not each piece's outline drawn over the others.
+    const joined = pieces.length > 1 ? unionGeometry(pieces, view, within) : null;
+    if (joined) {
+      const b = joined.bounds;
+      Object.assign(same, { path: joined.path, box: { x: b.left, y: b.top, w: b.right - b.left, h: b.bottom - b.top }, area: joined.area, confidence, agreed });
       continue;
     }
     const x0 = Math.min(same.box.x, f.box.x);
     const y0 = Math.min(same.box.y, f.box.y);
     const x1 = Math.max(same.box.x + same.box.w, f.box.x + f.box.w);
     const y1 = Math.max(same.box.y + same.box.h, f.box.y + f.box.h);
-    Object.assign(same, { path: `${same.path ?? ''}${f.path ?? ''}`, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, area: Math.min(1, same.area + f.area), confidence: Math.max(same.confidence ?? 0, f.confidence ?? 0), agreed: same.agreed || f.agreed });
+    Object.assign(same, { path: `${same.path ?? ''}${f.path ?? ''}`, box: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, area: Math.min(1, same.area + f.area), confidence, agreed });
   }
   parts = merged;
 
   // 7. Visible parts no region covered: outlined from their boxes.
   const missing = named.value.missing
-    .slice(0, 4)
+    .slice(0, 6)
     .map((m, k) => ({ name: cleanPartName(m.name, opts.object), rank: 200 + k, boxes: [toPx(m.box, view)].filter((b): b is PxBox => !!b) }))
     .filter((m) => m.name && isPart(m.name) && m.boxes.length);
   if (missing.length) {
@@ -1108,7 +1143,7 @@ async function pointOutlines(deps: LabelDeps, view: ImagePayload, points: Array<
   for (let i = 0; i < points.length; i += 8) batches.push(points.slice(i, i + 8).map((_, k) => i + k));
   let next = 0;
   await Promise.all(
-    Array.from({ length: Math.min(3, batches.length) }, async () => {
+    Array.from({ length: Math.min(4, batches.length) }, async () => {
       while (next < batches.length) {
         const idx = batches[next++]!;
         try {
@@ -1361,7 +1396,7 @@ export async function labelImage(
   // (on the background, for a curved part). Show only real outlines when there are any.
   if (found.some((f) => f.kind === 'mask')) found = found.filter((f) => f.kind === 'mask');
   // A readable picture: at most 16 parts, the most certain ones.
-  found = limitParts(found, opts.maxParts ?? 16);
+  found = limitParts(found, opts.maxParts ?? 24);
   // The words this person prefers for a part ("Hood" → "Bonnet"; same part, their word).
   for (const t of opts.taught ?? []) {
     if (!sameThing(t.from, t.to)) continue; // a mix-up, not a word: a hint only (it may be right elsewhere)

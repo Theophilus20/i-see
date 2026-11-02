@@ -369,3 +369,38 @@ describe('settling a region name from two independent looks', () => {
     expect(settleName('Bonnet', null, 'Car', isPart)).toMatchObject({ name: 'Bonnet', confirmed: false });
   });
 });
+
+import { unionGeometry } from '../../server/meta/sam';
+describe('one outline for a part found in pieces', () => {
+  // A rectangle of mask, as SAM returns it.
+  const rect = (left: number, top: number, w: number, h: number) =>
+    ({ kind: 'mask', identity: 'x', revision: 0, order: 0, objectId: '1', mask: encodeSegmentationMask(new Uint8Array(w * h).fill(1), w, h), bounds: { left, top, right: left + w, bottom: top + h } }) as never;
+  const image = { width: 400, height: 300 };
+  it('joins overlapping pieces into one loop, with no seams inside', () => {
+    const g = unionGeometry([rect(50, 50, 120, 80), rect(150, 60, 120, 80), rect(255, 55, 60, 70)], image)!;
+    expect(g.path.match(/M/g)).toHaveLength(1);
+    expect(g.bounds.left).toBeLessThanOrEqual(51);
+    expect(g.bounds.right).toBeGreaterThanOrEqual(314);
+  });
+  it('closes a hairline gap between pieces, but keeps pieces that are really apart', () => {
+    expect(unionGeometry([rect(50, 50, 100, 80), rect(151, 50, 100, 80)], image)!.path.match(/M/g)).toHaveLength(1);
+    expect(unionGeometry([rect(20, 50, 100, 80), rect(220, 50, 100, 80)], image)!.path.match(/M/g)).toHaveLength(2);
+  });
+  it('stays on the object', () => {
+    const within = new Uint8Array(image.width * image.height);
+    for (let y = 0; y < image.height; y++) for (let x = 0; x < 200; x++) within[y * image.width + x] = 1;
+    const g = unionGeometry([rect(50, 50, 100, 80), rect(140, 50, 120, 80)], image, within)!;
+    expect(g.bounds.right).toBeLessThanOrEqual(200);
+  });
+});
+
+import { afterThirdLook } from '../../server/meta/label';
+describe('a disagreement settled by a third look', () => {
+  it('keeps the chosen name, or the close look\'s name when it was sure and fits well', () => {
+    expect(afterThirdLook(0, ['Spout', 'Chamber'], { sure: false, fits: 'partly' })).toBe('Spout');
+    expect(afterThirdLook(1, ['Spout', 'Chamber'], { sure: false, fits: 'partly' })).toBe('Chamber');
+    expect(afterThirdLook(null, ['Spout', 'Chamber'], { sure: true, fits: 'well' })).toBe('Chamber');
+    expect(afterThirdLook(null, ['Spout', 'Chamber'], { sure: false, fits: 'well' })).toBeNull();
+    expect(afterThirdLook(null, ['Spout', 'Chamber'], { sure: true, fits: 'partly' })).toBeNull();
+  });
+});

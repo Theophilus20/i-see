@@ -377,7 +377,17 @@ export function smoothOutline(r: Uint8Array, w: number, h: number, ox: number, o
   let n = pixels ?? 0;
   if (pixels == null) for (let i = 0; i < r.length; i++) n += r[i]!;
   if (!n) return '';
-  const radius = Math.max(1, Math.min(4, Math.round(Math.sqrt(n) * 0.012)));
+  // How much to smooth: more for a large, thick part (a plastic handle traced from a shiny,
+  // see-through surface comes back with a wavy, "wormy" edge), little for a small or thin one, so
+  // a thin part (a shaft, a wire) is never smoothed away. Thickness is about area / edge length.
+  let edge = 0;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (r[i] && (x === 0 || y === 0 || x === w - 1 || y === h - 1 || !r[i - 1] || !r[i + 1] || !r[i - w] || !r[i + w])) edge++;
+    }
+  const thick = n / Math.max(1, edge);
+  const radius = Math.max(1, Math.min(8, Math.round(Math.min(Math.sqrt(n) * 0.02, thick * 0.35))));
   const pad = radius * 3 + 2;
   const W = w + 2 * pad;
   const H = h + 2 * pad;
@@ -561,6 +571,76 @@ export function maskGeometry(
   } catch {
     return { path: null, area: ((right - left) * (bottom - top)) / (image.width * image.height), anchor: boxCentre, kept: 1, inBox: 1, bounds: null };
   }
+}
+
+/**
+ * One outline for several pieces of one part (a handle traced in three pieces): the pieces'
+ * masks joined, the thin gaps between them closed, trimmed to the object, and traced once. Drawn
+ * piece by piece instead, the seams where the pieces overlap show as wavy lines inside the part.
+ */
+export function unionGeometry(
+  recs: SegmentationMaskRecord[],
+  image: { width: number; height: number },
+  within?: Uint8Array | null,
+): { path: string; area: number; bounds: { left: number; top: number; right: number; bottom: number } } | null {
+  if (!recs.length) return null;
+  const gap = Math.max(2, Math.round(Math.min(image.width, image.height) * 0.006));
+  // Room around the pieces for the closing below to work in.
+  const pad = gap * 2 + 1;
+  const left = Math.max(0, Math.min(...recs.map((r) => r.bounds.left)) - pad);
+  const top = Math.max(0, Math.min(...recs.map((r) => r.bounds.top)) - pad);
+  const right = Math.min(image.width, Math.max(...recs.map((r) => r.bounds.right)) + pad);
+  const bottom = Math.min(image.height, Math.max(...recs.map((r) => r.bounds.bottom)) + pad);
+  const w = right - left;
+  const h = bottom - top;
+  if (w < 2 || h < 2) return null;
+  let r: Uint8Array = new Uint8Array(w * h);
+  try {
+    for (const rec of recs) {
+      const mw = rec.mask.width;
+      const mh = rec.mask.height;
+      const m = cleanRaster(decodeMaskToRaster(rec.mask), mw, mh);
+      for (let y = 0; y < mh; y++) {
+        const ly = y + rec.bounds.top - top;
+        if (ly < 0 || ly >= h) continue;
+        for (let x = 0; x < mw; x++) {
+          const lx = x + rec.bounds.left - left;
+          if (lx >= 0 && lx < w && m[y * mw + x]) r[ly * w + lx] = 1;
+        }
+      }
+    }
+  } catch {
+    return null;
+  }
+  // Closing: grow by the gap, then shrink back (grow the outside). Joins pieces a few pixels
+  // apart without changing the outer shape.
+  const grown = dilate(r, w, h, gap);
+  const outside = new Uint8Array(w * h);
+  for (let i = 0; i < outside.length; i++) outside[i] = grown[i] ? 0 : 1;
+  const shrunk = dilate(outside, w, h, gap);
+  for (let i = 0; i < r.length; i++) r[i] = r[i] || !shrunk[i] ? 1 : 0;
+  if (within)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) if (!within[(y + top) * image.width + x + left]) r[y * w + x] = 0;
+  r = cleanRaster(r, w, h);
+  let n = 0;
+  let x0 = w;
+  let y0 = h;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (!r[y * w + x]) continue;
+      n++;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  if (!n) return null;
+  const path = smoothOutline(r, w, h, left, top, n);
+  if (!path || path.length > 200_000) return null;
+  return { path, area: Math.min(1, n / (image.width * image.height)), bounds: { left: x0 + left, top: y0 + top, right: x1 + left + 1, bottom: y1 + top + 1 } };
 }
 
 /**

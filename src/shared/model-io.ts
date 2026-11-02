@@ -410,7 +410,7 @@ export const PartMarksSchema = z.object({
     .describe('Every numbered region, once.'),
   missing: z
     .array(z.object({ name: z.string(), box: GroundBoxSchema }))
-    .describe('Up to four clearly visible parts of this object that no region covers, each with a tight box on the 0-1000 grid. Only parts you can really see.'),
+    .describe('Up to six clearly visible parts of this object that no region covers, each with a tight box on the 0-1000 grid. Only parts you can really see.'),
 });
 export type PartMarks = z.infer<typeof PartMarksSchema>;
 

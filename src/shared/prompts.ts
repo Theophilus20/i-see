@@ -12,7 +12,7 @@ import { SECTION_TITLE } from './epistemics';
 
 import { planForObject, planReference } from './bodyplans';
 
-export const PROMPT_VERSION = 'isee-2026-11-02.2';
+export const PROMPT_VERSION = 'isee-2026-11-02.3';
 
 const LANGUAGE_NOTE = (language: string) =>
   language.toLowerCase().startsWith('en')
@@ -252,9 +252,9 @@ export function partMarksUser(object: string | null, count: number, preferred: s
   return [
     `The image shows ${object ? `a ${object}` : 'an object'}, with ${count} numbered regions outlined in colour. Each region was traced from the photo itself.`,
     'For each number, look at what is inside that outline and say which part of this object it is, with its short, generic name (one to three words, like a reference book: "Headlight", "Leaf blade", "Handle"). Never a brand, model or feature name.',
-    'Say null if the region is the background, the surface below, another object (another plant or leaf, a pot, soil, a hand, a person, another vehicle), the whole object, or not one part you can name. Say null too if the outline clearly takes in background as well as the part (the gap between legs, the space inside a handle, the table beside it). Being unsure is a reason to say null.',
+    'Say null if the region is the background, the surface below, another object (another plant or leaf, a pot, soil, a hand, a person, another vehicle), the whole object, or not one part you can name. Say null too if the outline clearly takes in background as well as the part (the gap between legs, the space inside a handle, the table beside it). Otherwise name every region you can recognise, small ones too (a switch, a screw, a vent, a badge): each name is checked again separately.',
     'If several numbers are pieces of the same part, give them the same name. Two separate parts of the same kind (two wheels, two ears) get the same name too; they are told apart later.',
-    'Then list up to four clearly visible parts of this object that no region covers, each with a tight box.',
+    'Then list up to six clearly visible parts of this object that no region covers, each with a tight box.',
     preferred.length ? `Parts already noticed in this photo (use these names when they fit): ${preferred.join(', ')}.` : '',
     vocabulary.length ? `Standard names for parts of this kind of thing (most will not be visible; use one only if it is what the region is): ${vocabulary.join(', ')}.` : '',
     taught.length
