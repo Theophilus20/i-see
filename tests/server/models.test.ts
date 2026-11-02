@@ -76,3 +76,13 @@ describe('the start-up model check', () => {
     expect(cfg.meta.models.spark).toBe('muse-spark-1.3');
   });
 });
+
+import { strokeNumber } from '../../server/meta/digits';
+describe('numbers on the marked photo', () => {
+  it('are drawn as strokes, so they show on a server with no fonts', () => {
+    const svg = strokeNumber(17, 100, 100, 20, 30);
+    expect(svg).not.toMatch(/<text/);
+    expect(svg.match(/<path /g)).toHaveLength(2);
+    expect(strokeNumber(8, 0, 0, 10, 10).match(/<path /g)).toHaveLength(1);
+  });
+});

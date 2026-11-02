@@ -30,6 +30,7 @@ import type { HttpClient } from './http';
 import { log } from '../log';
 import { cleanRaster, coarseMask, dilate, fullRaster, interiorPoint, maskGeometry, positionalNames, runSam, samSegment, scalePath, tidyRegions } from './sam';
 import { chatStructured } from './structured';
+import { strokeNumber } from './digits';
 
 export interface LabelDeps {
   client: HttpClient;
@@ -605,7 +606,7 @@ export async function overlay(view: ImagePayload, regions: Array<{ path: string 
       const x = Math.max(r, Math.min(w - r, ax + r * 0.9));
       const y = Math.max(r, Math.min(h - r, ay - r * 2.1));
       const c = COLOURS[i % COLOURS.length];
-      return `<line x1="${ax}" y1="${ay}" x2="${x}" y2="${y}" stroke="${c}" stroke-width="${Math.max(2, sw)}"/><circle cx="${ax}" cy="${ay}" r="${Math.max(3, sw * 1.5)}" fill="${c}" stroke="#000" stroke-width="1"/><circle cx="${x}" cy="${y}" r="${r}" fill="${c}" stroke="#000" stroke-width="2"/><text x="${x}" y="${y + r * 0.36}" font-family="Arial, Helvetica, sans-serif" font-size="${Math.round(r * 1.05)}" font-weight="700" text-anchor="middle" fill="#000">${i + 1}</text>`;
+      return `<line x1="${ax}" y1="${ay}" x2="${x}" y2="${y}" stroke="${c}" stroke-width="${Math.max(2, sw)}"/><circle cx="${ax}" cy="${ay}" r="${Math.max(3, sw * 1.5)}" fill="${c}" stroke="#000" stroke-width="1"/><circle cx="${x}" cy="${y}" r="${r}" fill="${c}" stroke="#000" stroke-width="2"/>${strokeNumber(i + 1, x, y, r * 1.05, r * 1.45)}`;
     })
     .join('');
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${paths}${tags}</svg>`);
