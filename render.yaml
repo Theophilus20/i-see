@@ -1,0 +1,19 @@
+# Render Blueprint: one always-running Node web service that serves the app and the API.
+# New > Blueprint on render.com, pick this repository, and enter MODEL_API_KEY when asked.
+services:
+  - type: web
+    name: i-see
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      # Render routes traffic to the service from outside the machine.
+      - key: HOST
+        value: 0.0.0.0
+      # Behind Render's proxy: rate limits use the visitor's address, not the proxy's.
+      - key: TRUST_PROXY
+        value: "1"
+      - key: MODEL_API_KEY
+        sync: false

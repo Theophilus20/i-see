@@ -1,0 +1,23 @@
+{
+  "id": "resp_1",
+  "output": [
+    {"type": "reasoning", "summary": []},
+    {"type": "web_search_call", "id": "ws_1", "status": "completed"},
+    {
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "The Moka Express was introduced by Bialetti in 1933. Its safety valve releases pressure if the funnel clogs.",
+          "annotations": [
+            {"type": "url_citation", "url": "https://www.bialetti.com/moka-express", "title": "Moka Express | Bialetti", "start_index": 0, "end_index": 52},
+            {"type": "url_citation", "url": "https://www.bialetti.com/moka-express", "title": "Moka Express | Bialetti", "start_index": 53, "end_index": 108},
+            {"type": "url_citation", "url": "javascript:alert(1)", "title": "x", "start_index": 0, "end_index": 4}
+          ]
+        }
+      ]
+    }
+  ],
+  "usage": {"input_tokens": 120, "output_tokens": 40, "output_tokens_details": {"reasoning_tokens": 10}}
+}

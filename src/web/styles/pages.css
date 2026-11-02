@@ -1,0 +1,314 @@
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.page-head > div:first-child {
+  display: grid;
+  gap: 10px;
+  max-width: 46em;
+}
+.page-head h1 {
+  font-size: var(--t-3xl);
+  letter-spacing: -0.025em;
+}
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  padding: 40px;
+  border-radius: var(--r-xl);
+  background: var(--surface-2);
+}
+.notice + .contact-sheet,
+.notice {
+  margin-bottom: 20px;
+}
+.follow-up {
+  background: var(--action-tint);
+  margin-bottom: 24px;
+}
+
+/* Passport */
+.contact-sheet {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+.sheet-card {
+  display: grid;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: var(--r-lg);
+}
+.sheet-card:hover {
+  color: var(--ink);
+}
+.sheet-card img,
+.thumb-empty {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--r-lg);
+  background: var(--plate);
+  transition: transform var(--med) var(--ease);
+}
+.sheet-card:hover img {
+  transform: translateY(-2px);
+}
+.sheet-meta {
+  display: grid;
+  gap: 2px;
+}
+.sheet-name {
+  font-weight: 800;
+}
+
+/* Compare */
+.cmp-pick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.cmp-table {
+  /* Two equal columns, whatever their text, so neither pushes the other off the page. */
+  table-layout: fixed;
+  width: 100%;
+}
+.cmp-table td {
+  overflow-wrap: anywhere;
+}
+.cmp-table thead th:first-child {
+  width: 160px;
+}
+.cmp-table thead th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--t-sm);
+  color: var(--ink);
+  vertical-align: bottom;
+}
+.cmp-table thead th a {
+  display: block;
+  margin-top: 8px;
+  font-weight: 800;
+}
+.cmp-photo {
+  /* The whole photo, never cropped: a cow keeps its head and tail. */
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: var(--r-md);
+  background: var(--plate);
+}
+.cmp-table tbody th {
+  color: var(--ink-2);
+  font-weight: 700;
+}
+.cmp-ai {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  margin-top: 28px;
+}
+.cmp-out {
+  display: grid;
+  gap: 12px;
+}
+.cmp-headline {
+  font-size: var(--t-xl);
+}
+
+/* Method */
+.method-section {
+  padding-block: 32px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 16px;
+  max-width: 980px;
+}
+.method-section h2 {
+  font-size: var(--t-xl);
+}
+.method-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.method-stages li {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ms-num {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 800;
+  font-size: var(--t-xs);
+}
+.ms-title {
+  font-weight: 800;
+}
+.ms-who {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--action);
+}
+.method-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  color: var(--ink-2);
+}
+.method .data-table tr.st-skipped {
+  color: var(--ink-3);
+}
+
+/* Settings */
+.settings-group {
+  display: grid;
+  gap: 14px;
+  padding-block: 28px;
+  border-top: 1px solid var(--line);
+  max-width: 820px;
+}
+.settings-group h2 {
+  font-size: var(--t-lg);
+  margin-bottom: 4px;
+}
+.setting {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+.setting .select {
+  max-width: 340px;
+}
+.setting-label {
+  font-weight: 700;
+  font-size: var(--t-sm);
+}
+.setting-help {
+  margin: -6px 0 6px 216px;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+  max-width: 36em;
+}
+.setting .segmented {
+  justify-self: start;
+  flex-wrap: wrap;
+}
+
+/* Report */
+.report {
+  display: grid;
+  gap: 24px;
+  max-width: 860px;
+}
+.report-tools {
+  display: flex;
+  justify-content: space-between;
+}
+.report-head {
+  display: grid;
+  gap: 10px;
+}
+.report-head h1 {
+  font-family: var(--font-voice);
+  font-size: var(--t-3xl);
+  font-weight: 600;
+}
+.report h2 {
+  font-size: var(--t-lg);
+  margin-bottom: 8px;
+}
+.report-findings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.report-findings li {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+  font-size: var(--t-sm);
+}
+.report-basis {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+.report-foot {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+@media print {
+  .topbar,
+  .footer {
+    display: none;
+  }
+  .report {
+    max-width: none;
+    padding: 0;
+  }
+  .report .plate-frame {
+    max-height: 9cm;
+    width: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .cmp-table thead th:first-child {
+    width: 84px;
+  }
+  .cmp-pick {
+    grid-template-columns: 1fr;
+  }
+  .setting {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .setting-help {
+    margin-left: 0;
+  }
+  .report-findings li {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .page-head h1,
+  .scan-head h1 {
+    font-size: var(--t-2xl);
+  }
+}

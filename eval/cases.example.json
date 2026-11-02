@@ -1,0 +1,4 @@
+[
+  { "id": "moka-pot", "image": "photos/moka-pot.jpg", "expect": ["moka pot", "stovetop espresso"] },
+  { "id": "fitting-closeup", "image": "photos/fitting.jpg", "expect": ["npt", "bsp", "pipe fitting"], "ambiguous": true }
+]

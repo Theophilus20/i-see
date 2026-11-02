@@ -1,0 +1,238 @@
+.plate {
+  margin: 0;
+}
+.plate-frame {
+  position: relative;
+  width: 100%;
+  background: var(--plate);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  isolation: isolate;
+}
+.plate-frame[data-pick='true'] {
+  cursor: crosshair;
+}
+.plate-frame > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+.plate-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.plate-scrim {
+  fill: rgb(17 18 19 / 0);
+  transition: fill var(--med) var(--ease);
+}
+.plate-scrim.on {
+  fill: rgb(17 18 19 / 0.48);
+}
+.plate-region .halo {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.55);
+  opacity: 0;
+  transition: opacity var(--med) var(--ease);
+}
+.plate-region.on .halo {
+  opacity: 1;
+}
+.plate-region .edge {
+  fill: transparent;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.9;
+  /* A fine white line with a soft shadow, so it reads on light and dark parts of the photo alike. */
+  filter: drop-shadow(0 0 1.5px rgb(0 0 0 / 0.55));
+  transition:
+    opacity var(--med) var(--ease),
+    stroke-width var(--med) var(--ease);
+}
+.plate-region.dim .edge {
+  opacity: 0.25;
+}
+.plate-region.on .edge {
+  opacity: 1;
+}
+.plate-region .edge.draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-edge 1.1s var(--ease) forwards;
+}
+.plate-region:nth-child(3n + 1) .edge.draw {
+  animation-delay: 80ms;
+}
+.plate-region:nth-child(3n + 2) .edge.draw {
+  animation-delay: 220ms;
+}
+@keyframes draw-edge {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.plate-ring {
+  opacity: 0.85;
+}
+.plate-ring.on {
+  opacity: 1;
+}
+
+.plate-marker {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  background: rgb(28 43 51 / 0.82);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+  transition:
+    transform var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+}
+.plate-marker:hover,
+.plate-marker.on {
+  background: var(--action);
+  transform: translate(-50%, -50%) scale(1.12);
+}
+.plate-marker.approx {
+  border-style: dashed;
+}
+.plate-marker:focus-visible {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--action);
+  border-radius: 50%;
+}
+.plate figcaption {
+  margin-top: 10px;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+}
+@media (max-width: 640px) {
+  .plate-frame {
+    border-radius: var(--r-lg);
+  }
+  .plate-marker {
+    width: 24px;
+    height: 24px;
+    font-size: 11px;
+  }
+}
+
+/* Named markers */
+.plate-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.plate-leaders {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.plate-leaders .leader line {
+  stroke: #fff;
+  stroke-width: 1.25;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.6));
+}
+.plate-leaders .leader circle {
+  fill: #fff;
+  stroke: rgb(28 43 51 / 0.85);
+  stroke-width: 1.5;
+}
+.plate-leaders .leader.on line {
+  stroke: #fff;
+  stroke-width: 2;
+  opacity: 1;
+}
+.plate-leaders .leader.on circle {
+  fill: var(--action);
+  stroke: #fff;
+}
+.plate-leaders .leader.dim {
+  opacity: 0.25;
+}
+.plate-pill {
+  position: absolute;
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  /* Names sit in a column down each side: never wider than a good share of the photo. */
+  max-width: min(220px, 44%);
+  padding: 3px 10px 3px 3px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgb(255 255 255 / 0.85);
+  background: rgb(20 26 31 / 0.8);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font: 600 12px/1.2 var(--font-ui);
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+  transition:
+    background var(--fast) var(--ease),
+    opacity var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+.plate-pill b {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  color: #1c2b33;
+  font-size: 11px;
+}
+.plate-pill-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plate-pill:hover,
+.plate-pill.on {
+  background: var(--action);
+  transform: scale(1.04);
+}
+.plate-pill.dim {
+  opacity: 0.4;
+}
+.plate-pill.approx {
+  border-style: dashed;
+}
+.plate-pill:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--action);
+}
+.plate-pill.dot {
+  transform: translate(-50%, -50%);
+  padding: 2px;
+}
+.plate-pill.dot .plate-pill-name {
+  display: none;
+}
+.plate-pill.dot:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+/* Every part highlighted at once, each in its own colour. */
+.plate-tint {
+  transition: opacity var(--med) var(--ease);
+}
+.plate-tint.dim {
+  opacity: 0.35;
+}

@@ -1,0 +1,24 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 1102366,
+        "ns": 0,
+        "title": "Moka pot",
+        "index": 1,
+        "extract": "The moka pot is a stove-top coffee maker that produces coffee by passing hot water pressurized by vapour through ground coffee. Named after the Yemeni city of Mocha, it was invented by the Italian engineer Luigi De Ponti for Alfonso Bialetti in 1933.",
+        "fullurl": "https://en.wikipedia.org/wiki/Moka_pot",
+        "touched": "2026-09-30T11:02:11Z"
+      },
+      {
+        "pageid": 99,
+        "ns": 0,
+        "title": "Coffee percolator",
+        "index": 2,
+        "extract": "A coffee percolator is a type of pot used for the brewing of coffee by continually cycling the boiling or nearly boiling brew through the grounds using gravity until the required strength is reached.",
+        "fullurl": "https://en.wikipedia.org/wiki/Coffee_percolator"
+      }
+    ]
+  }
+}

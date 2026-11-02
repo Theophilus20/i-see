@@ -1,0 +1,1043 @@
+UNIVERSAL OBJECT INTELLIGENCE WEB APPLICATION
+UPDATED TECHNICAL ARCHITECTURE
+Version 2.0 | Browser-first application | Meta-first AI stack
+
+======================================================================
+1. EXECUTIVE SUMMARY
+======================================================================
+
+This project is a browser-first AI application designed to help people
+understand physical objects. A user can photograph or upload an image of an
+object, select a region of interest, ask questions by text or voice, and
+receive an evidence-backed object profile.
+
+The intended scope includes consumer products, tools, machines, electronics,
+furniture, vehicles, plants, artifacts, components, and many other object
+categories. The system should gracefully handle unfamiliar objects and
+uncertain identities instead of pretending that every scan can be resolved.
+
+The AI stack uses the requested Meta model family:
+- Muse Spark
+- Muse Wonder
+- Muse Image
+- Muse Voice Transcribe
+- SAM 3.1
+- Muse Glimmer (open-weight deployment)
+- Muse Spark Open (open-weight deployment)
+
+Hosted models are accessed through Meta Model API where the relevant model
+and operation are supported. Open-weight models are run using a compatible
+inference provider or self-managed infrastructure. Muse Code may be used as
+a coding agent during development; it is a developer tool, not a runtime
+dependency for end users.
+
+No OpenAI model is part of the intended application model stack.
+
+Important feasibility rule:
+"Universal" describes the product goal, not a promise of perfect recognition.
+A single ordinary image cannot reliably establish every object's exact model,
+internal construction, material composition, authenticity, provenance, or
+condition. The system must distinguish observed facts, source-backed facts,
+inferences, hypotheses, and unknowns. Some conclusions require multiple views,
+serial numbers, specialist databases, additional sensors, laboratory testing,
+or human expertise.
+
+======================================================================
+2. PRODUCT VISION AND USER EXPERIENCE
+======================================================================
+
+Core promise:
+"Scan an object. Understand what it is, how it works, where it came from,
+what it is made of, what it is used for, and what is known or uncertain."
+
+Primary user journey:
+1. User opens the web application in a desktop or mobile browser.
+2. User captures a photo, uploads one or more images, or starts a supported
+   voice interaction.
+3. User crops the image or selects a particular object/component.
+4. The system detects and segments relevant objects.
+5. AI proposes identity candidates and explains visual evidence.
+6. The system retrieves reference information and checks claims against sources.
+7. The interface presents an object profile with confidence and citations.
+8. The user explores components, asks follow-up questions, compares objects,
+   or saves a private object passport.
+9. The user can export a report or share a controlled link.
+
+Main product areas:
+- Scan: camera capture, image upload, crop, object selection, multi-image scan.
+- Identify: candidate names, category, distinguishing visual features.
+- Explain: purpose, operation, components, materials, maintenance, advantages,
+  disadvantages, limitations, and common failure modes.
+- Inside View: sourced diagrams, reference images, or clearly labelled
+  generated conceptual illustrations.
+- History: origin, invention, evolution, known dates, and provenance evidence.
+- Live Context: current information from external sources where available.
+- Compare: compare two or more objects using normalized attributes.
+- What-if Lab: explain hypothetical changes and simulate supported scenarios.
+- Object Graph: show relationships among parts, systems, related products,
+  inventors, materials, and technologies.
+- Object Passport: user-owned collection of scans, notes, repairs, and sources.
+- Voice: transcribe spoken questions and, if separately implemented, provide
+  speech output using a supported speech service.
+- Research Report: a source-linked report that can be saved or exported.
+
+======================================================================
+3. META MODEL STRATEGY
+======================================================================
+
+3.1 Muse Spark — primary multimodal intelligence
+Intended responsibilities:
+- Analyze object images and user questions.
+- Produce structured candidate identifications.
+- Explain visible features and likely functions.
+- Answer questions using evidence supplied by the retrieval system.
+- Coordinate suitable analysis steps through backend tools.
+- Return uncertainty and missing-information requests where supported.
+
+A fluent model answer is not proof. Claims about identity, materials, dates,
+safety, or provenance must be checked against evidence whenever possible.
+
+3.2 Muse Wonder — deeper exploration
+Intended responsibilities, subject to documented capabilities:
+- Explore competing explanations for unfamiliar objects.
+- Help formulate follow-up research questions.
+- Compare plausible hypotheses.
+- Produce deeper technical or historical explanations from retrieved sources.
+- Help identify which missing evidence would resolve ambiguity.
+
+Use only for workflows where evaluation demonstrates an advantage over the
+primary model. Do not route every request to every model by default.
+
+3.3 Muse Image — generated visual explanations
+Intended responsibilities, subject to documented capabilities:
+- Create explanatory illustrations.
+- Generate conceptual cutaway artwork or visual metaphors.
+- Produce educational visuals for reports.
+
+Every generated image must be labelled as AI-generated and illustrative.
+It must not be presented as a verified photograph, engineering drawing,
+manufacturer specification, or exact internal structure unless independently
+validated against an authoritative reference.
+
+3.4 Muse Voice Transcribe — speech-to-text
+Intended responsibilities:
+- Transcribe spoken questions and voice notes.
+- Pass the resulting text to the question-answering pipeline.
+- Preserve the transcript for user review where appropriate.
+- Allow the user to correct transcription errors before consequential actions.
+
+Audio files and transcripts are private user data. Apply retention limits and
+clear consent controls.
+
+3.5 SAM 3.1 — segmentation and visual selection
+Intended responsibilities, subject to supported API features:
+- Segment an object from its background.
+- Let users select a component or region.
+- Separate multiple visible objects.
+- Generate masks or region references for downstream image analysis.
+- Support repeated scans from different viewpoints.
+
+Segmentation identifies pixels or regions; it does not, by itself, prove the
+identity, material, function, or internal structure of a component.
+
+3.6 Muse Spark Open — open-weight inference
+Intended responsibilities:
+- Provide an open-weight inference route for supported reasoning or
+  multimodal tasks.
+- Enable deployment experiments, performance evaluation, and infrastructure
+  flexibility.
+- Support selected workloads where the deployed version performs well.
+
+Hackathon note: if using Baseten, the supplied instructions specify the model
+identifier `meta-models/muse-spark-open-1026`. Confirm the identifier,
+endpoint format, supported input modalities, and output schema in current
+provider documentation before deployment.
+
+3.7 Muse Glimmer — open-weight inference
+Intended responsibilities:
+- Run appropriate workloads after validating its documented capabilities.
+- Support cost, latency, privacy, or deployment experiments where suitable.
+- Act as an alternative inference route only for tasks it passes evaluation.
+
+Do not assume the model can perform a task solely because the product needs
+that capability. Benchmark its actual capabilities first.
+
+3.8 Muse Code — development-time coding agent
+Use for developer assistance such as:
+- Scaffolding application code.
+- Implementing API adapters and tests.
+- Debugging and refactoring.
+- Generating documentation and migration scripts.
+
+Muse Code is not required to run the application in production and must not
+receive production secrets or unrestricted access to user data.
+
+3.9 Model access and capability verification
+Use Meta Model API for hosted models when the required model and operation
+are available. Confirm current documentation for:
+- Authentication and API keys.
+- Model identifiers and endpoint routes.
+- Supported image, audio, text, and structured-output formats.
+- Rate limits and context limits.
+- Pricing, retention, and data-use terms.
+- Regional availability and access approvals.
+- Safety requirements and terms of use.
+
+Do not hard-code undocumented parameters. Keep provider settings in
+environment variables and versioned configuration.
+
+======================================================================
+4. HIGH-LEVEL SYSTEM ARCHITECTURE
+======================================================================
+
+BROWSER CLIENT
+  Next.js / React / TypeScript
+  - Camera and file upload
+  - Crop and object selection
+  - Scan progress and cancellation
+  - Object profile and source viewer
+  - Component explorer and comparison
+  - Voice capture and transcript editing
+  - Object passport and settings
+          |
+          v
+EDGE / WEB APPLICATION LAYER
+  - TLS and security headers
+  - Session authentication
+  - Rate limiting and abuse prevention
+  - Upload authorization and size limits
+          |
+          v
+BACKEND API (FastAPI or equivalent)
+  - Scan service
+  - Object profile service
+  - Question-answering service
+  - Research and retrieval service
+  - Report service
+  - User and collection service
+          |
+          v
+SCAN ORCHESTRATOR
+  1. Validate and normalize input
+  2. Detect/segment candidate objects
+  3. Generate candidate identity hypotheses
+  4. Retrieve authoritative references
+  5. Reconcile claims and sources
+  6. Assess confidence and unresolved conflicts
+  7. Produce typed object profile
+  8. Save scan and evidence records
+          |
+          +--------------------+-----------------------+
+          |                    |                       |
+          v                    v                       v
+    META HOSTED APIs      OPEN-WEIGHT INFERENCE   EXTERNAL DATA
+    Muse Spark            Muse Spark Open         Search/indexes
+    Muse Wonder            Muse Glimmer            Manufacturer data
+    Muse Image             Provider/self-hosted    Standards/recalls
+    Voice Transcribe                              Museums/catalogs
+    SAM 3.1                                       Approved live APIs
+          |                    |                       |
+          +--------------------+-----------------------+
+                               |
+                               v
+                       EVIDENCE LAYER
+              - Source retrieval and ranking
+              - Claim-to-source links
+              - Contradiction detection
+              - Freshness and provenance metadata
+              - Confidence and review state
+                               |
+                               v
+                         DATA PLATFORM
+              PostgreSQL + pgvector
+              Object storage
+              Redis / job queue
+              Search index (optional)
+              Audit logs and telemetry
+                               |
+                               v
+                         WEB EXPERIENCE
+
+The model adapter layer is mandatory. Product features call internal
+capabilities, not provider-specific endpoints directly. This makes it possible
+to change models or providers without rewriting the product.
+
+======================================================================
+5. RECOMMENDED TECHNOLOGY STACK
+======================================================================
+
+Frontend:
+- Next.js and React.
+- TypeScript.
+- Accessible component system and responsive CSS.
+- Three.js for interactive 3D viewing where suitable.
+- Browser camera APIs for capture, with user permission.
+- Browser audio capture for voice input, with explicit consent.
+
+Backend:
+- Python and FastAPI, or an equivalent typed API framework.
+- Pydantic or JSON Schema for validation of model outputs.
+- Async job workers for long-running scans and research.
+- A provider-neutral model gateway.
+
+Data:
+- PostgreSQL for core records and transactions.
+- pgvector for semantic retrieval where useful.
+- S3-compatible object storage for images, reports, and generated assets.
+- Redis for queues, caching, and short-lived state.
+- Optional search engine for full-text and faceted search.
+
+Infrastructure:
+- Containerized services.
+- Managed database and object storage for initial launch.
+- Separate inference deployments for open-weight models.
+- CI/CD pipeline, infrastructure-as-code, secret manager, monitoring, backups.
+- CDN for static assets and public educational content.
+
+Provider options for open-weight inference:
+- Baseten.
+- Modal.
+- Fireworks AI.
+- Self-managed GPU infrastructure if operationally justified.
+
+These are options, not a claim that every provider supports every requested
+model. Confirm model availability, hardware requirements, deployment format,
+and current pricing before selecting a provider. Partner credits are optional
+and must not be a production dependency.
+
+======================================================================
+6. SCAN AND IDENTIFICATION PIPELINE
+======================================================================
+
+Stage 1: Input intake
+- Accept supported image formats and enforce size limits.
+- Validate file signatures, not just extensions.
+- Strip unnecessary metadata where appropriate.
+- Normalize orientation and create safe derivatives.
+- Record consent and user-selected privacy settings.
+- For multiple views, group images into a single scan session.
+
+Stage 2: Quality assessment
+- Check blur, glare, low light, distance, and occlusion.
+- Ask for another image when image quality is inadequate.
+- Provide capture guidance such as "photograph the label" or "show the
+  underside."
+- Do not silently turn a low-quality image into a confident identification.
+
+Stage 3: Object detection and segmentation
+- Use SAM 3.1 where supported.
+- Show selectable masks or regions in the UI.
+- Let the user correct the selected object.
+- Store the original image separately from derived crops and masks.
+
+Stage 4: Candidate identification
+- Ask Muse Spark to return a constrained list of identity candidates.
+- Include visible evidence and distinguishing features.
+- Where possible, request candidate-specific missing information.
+- Avoid forcing a single answer when several candidates remain plausible.
+
+Stage 5: Reference retrieval
+- Search approved web indexes, manufacturer documentation, product catalogs,
+  standards, museum records, repair manuals, and other relevant databases.
+- Prefer primary sources for specifications, origin, safety notices, and
+  historical claims.
+- Record URL, publisher, title, publication date, retrieval time, and source
+  type.
+- Respect copyright, robots rules, source terms, and rate limits.
+
+Stage 6: Evidence reconciliation
+- Link each important claim to one or more supporting sources.
+- Detect conflicts between sources and between sources and visual evidence.
+- Distinguish "seen in image" from "reported by source" and "inferred by AI."
+- If a claim cannot be supported, mark it uncertain or omit it.
+- Do not fabricate citations or claim that a source was checked when it was not.
+
+Stage 7: Structured result
+- Validate output against a schema.
+- Reject malformed fields and retry or fall back safely.
+- Store the model identifier, prompt/template version, retrieval references,
+  timestamps, and relevant quality metrics.
+- Show the user a concise summary first, with deeper sections available.
+
+Stage 8: Follow-up interaction
+- Resolve follow-up questions against the saved object profile and evidence.
+- Retrieve additional sources when needed.
+- Keep user-provided facts distinct from externally verified facts.
+- Allow corrections and feedback to improve the user experience.
+
+======================================================================
+7. OBJECT PROFILE DATA MODEL
+======================================================================
+
+A profile should be modular. Not every category uses every field.
+
+Core fields:
+- object_id
+- scan_id
+- user_id or owner scope
+- display_name
+- candidate_names
+- category and subcategory
+- short_summary
+- visual_observations
+- distinguishing_features
+- likely_function
+- operation_explanation
+- components
+- materials (with evidence status)
+- dimensions (measured, estimated, or sourced)
+- origin and manufacturer (when established)
+- approximate date or date range (when supported)
+- historical_timeline
+- common_uses
+- benefits and limitations
+- maintenance guidance
+- safety considerations
+- failure modes
+- environmental considerations
+- related_objects
+- external_live_data
+- open_questions
+- confidence summary
+- citations and claim links
+- created_at and updated_at
+
+Each material claim should record:
+- claim text
+- claim type: observation, sourced fact, inference, hypothesis, unknown
+- confidence or calibrated score
+- source references
+- model and pipeline version where applicable
+- verification status
+- last_checked_at for time-sensitive claims
+
+Avoid one giant free-text field as the only stored representation. Structured
+fields enable comparison, filtering, history, and quality evaluation.
+
+======================================================================
+8. EVIDENCE, SOURCES, AND TRUST
+======================================================================
+
+Use a claim-evidence model instead of attaching a generic list of links to an
+entire answer.
+
+Source record:
+- source_id
+- URL or stable identifier
+- title and publisher
+- source category
+- publication date, if known
+- retrieval timestamp
+- content hash or version reference where appropriate
+- trust/relevance assessment
+- access and reuse notes
+
+Claim record:
+- claim_id
+- object_id
+- statement
+- claim category
+- linked evidence
+- confidence
+- contradiction status
+- verification status
+- expiry or recheck policy
+
+Source preferences:
+1. Manufacturer documentation and official specifications for product details.
+2. Government, standards bodies, and safety agencies for regulated facts.
+3. Academic publications and museum collections for scientific or historical
+   claims.
+4. Reputable specialist sources for repair and domain-specific information.
+5. Community sources as supporting context, not sole authority for high-stakes
+   claims.
+
+A source being official does not make every statement universally correct.
+Keep source date and scope visible. Handle conflicting evidence explicitly.
+
+======================================================================
+9. LIVE INFORMATION AND EXTERNAL TOOLS
+======================================================================
+
+Potential live-data features:
+- Current product specifications and availability.
+- Recall and safety notices.
+- Repair documentation and parts availability.
+- Historical catalog records.
+- Current environmental or operational data for objects that have suitable
+  connected data sources.
+- Market prices or estimated resale ranges where trustworthy data exists.
+
+Live data must be retrieved from a source that actually provides it. The AI
+model should interpret the retrieved data, not invent current values.
+
+For each live result, show:
+- source and retrieval time
+- location or market scope when relevant
+- data freshness
+- known limitations
+- whether the value is an estimate or a confirmed record
+
+Do not imply that ATLAS can monitor an object in real time unless the object
+has a suitable sensor, connected service, or live data feed.
+
+======================================================================
+10. INTERNAL STRUCTURE AND 3D EXPLORATION
+======================================================================
+
+Possible visualization modes:
+A. Verified reference diagram: linked to its source and model/version.
+B. User-provided diagram: clearly identified as user supplied.
+C. Generated conceptual illustration: labelled as AI-generated and not
+   guaranteed to match the scanned object's exact internals.
+D. Interactive 3D model: displayed when a suitable reference model exists.
+E. Exploded view: shown only when source geometry or a validated model exists.
+F. Textual component map: used when visual evidence is insufficient.
+
+Muse Image may generate illustrative visuals if supported by the deployed
+endpoint. It cannot independently establish the true internal construction
+of a specific object from an exterior photograph.
+
+Three.js can display available 3D assets in the browser. It does not generate
+accurate engineering geometry by itself. Accurate models may require CAD
+files, manufacturer assets, photogrammetry, specialist datasets, or expert
+modelling.
+
+The interface should clearly distinguish:
+- verified object-specific structure
+- generic structure typical of this object class
+- speculative or illustrative content
+- unavailable information
+
+======================================================================
+11. SPECIALIST MODULES
+======================================================================
+
+Use modular specialist workflows. Each module shares the same evidence and
+profile format but can add category-specific tools and validation rules.
+
+Electronics:
+- model and label identification
+- ports and visible components
+- manufacturer specifications
+- supported repair and safety information
+
+Mechanical objects:
+- component identification
+- principle of operation
+- wear and maintenance considerations
+- sourced diagrams where available
+
+Plants and natural objects:
+- candidate identification with uncertainty
+- visible traits and likely habitat
+- toxicity or conservation cautions from appropriate sources
+- request expert confirmation for consequential decisions
+
+Artifacts and historical objects:
+- stylistic and material observations
+- comparison with catalogued objects
+- provenance limitations
+- no unsupported authenticity or valuation claims
+
+Vehicles and machinery:
+- make/model candidate matching
+- specifications and service information
+- recalls from authoritative sources
+- clear safety warnings for repairs or operation
+
+Every specialist module must be evaluated on a representative dataset. High-risk
+advice must be conservative and may require professional confirmation.
+
+======================================================================
+12. WHAT-IF LAB AND SIMULATION
+======================================================================
+
+The What-if Lab allows users to ask questions such as:
+- What would change if this component were made from another material?
+- How might efficiency change under a stated assumption?
+- What could happen if a part were removed?
+- How would a historical design differ under modern constraints?
+
+The system must classify results as:
+- established physical principle
+- calculation using explicit assumptions
+- simulation output
+- qualitative hypothesis
+- unknown / not enough data
+
+Do not present a generated narrative as a validated engineering simulation.
+Quantitative results require an appropriate mathematical model, stated
+parameters, units, assumptions, and validation. Dangerous real-world
+experiments should not be encouraged.
+
+======================================================================
+13. OBJECT RELATIONSHIP GRAPH
+======================================================================
+
+Represent relationships such as:
+- object contains component
+- component made from material
+- object manufactured by organization
+- object based on technology
+- object related to another model
+- person associated with invention, subject to source verification
+- object documented in source
+- component replaced by compatible part, only when verified
+
+Graph nodes and edges must carry source references and confidence. Avoid
+turning weak associations into definitive relationships.
+
+The graph can power:
+- related-object discovery
+- component navigation
+- technology timelines
+- comparison suggestions
+- cross-object learning paths
+
+======================================================================
+14. DATABASE DESIGN
+======================================================================
+
+Recommended core tables:
+- users
+- sessions
+- scans
+- scan_assets
+- detected_regions
+- objects
+- object_candidates
+- object_profiles
+- components
+- claims
+- sources
+- claim_evidence
+- object_relationships
+- conversations
+- messages
+- reports
+- generated_assets
+- feedback
+- model_runs
+- audit_events
+- user_consents
+
+Use stable IDs, foreign keys, timestamps, and explicit ownership. Add indexes
+for user_id, object_id, scan_id, timestamps, category, and common search fields.
+Use vector indexes only where semantic retrieval improves a measured use case.
+
+Store large images and generated files in object storage, not as database blobs.
+Use signed, short-lived URLs for private assets. Apply deletion policies to
+both database rows and stored files.
+
+======================================================================
+15. API DESIGN
+======================================================================
+
+Example internal endpoints (adapt names to the chosen implementation):
+
+POST /api/v1/scans
+- Create a scan session and return an upload target or upload instructions.
+
+POST /api/v1/scans/{scan_id}/assets
+- Register or upload an image/audio asset.
+
+POST /api/v1/scans/{scan_id}/analyze
+- Start analysis and return a job identifier.
+
+GET /api/v1/jobs/{job_id}
+- Return processing status and safe progress information.
+
+GET /api/v1/objects/{object_id}
+- Return the saved profile and evidence references.
+
+POST /api/v1/objects/{object_id}/questions
+- Ask a question grounded in the profile and retrieved evidence.
+
+POST /api/v1/objects/{object_id}/compare
+- Compare selected objects using normalized attributes.
+
+POST /api/v1/objects/{object_id}/reports
+- Generate a report from saved evidence.
+
+GET /api/v1/objects/{object_id}/sources
+- Return the source records supporting profile claims.
+
+DELETE /api/v1/scans/{scan_id}
+- Delete the scan and associated assets subject to retention and legal rules.
+
+API rules:
+- Validate every request and response.
+- Authenticate private resources and check ownership.
+- Apply rate limits, file limits, and timeouts.
+- Use idempotency keys for operations that may be retried.
+- Never expose provider API keys to the browser.
+- Keep internal provider responses out of public APIs unless normalized and safe.
+- Use versioned schemas to support future changes.
+
+======================================================================
+16. MODEL GATEWAY AND ORCHESTRATION
+======================================================================
+
+Implement an internal interface for model tasks, for example:
+- analyze_image()
+- segment_image()
+- transcribe_audio()
+- generate_explanation()
+- generate_illustration()
+- structured_reasoning()
+- validate_structured_output()
+
+Each adapter should handle:
+- provider authentication
+- model identifier and version
+- input conversion
+- timeouts and retries
+- rate-limit responses
+- request/response logging with sensitive-data redaction
+- output normalization
+- error classification
+- usage and cost tracking
+
+Routing policy:
+1. Choose the model based on task type and benchmark results.
+2. Use hosted Meta APIs for supported tasks where appropriate.
+3. Use open-weight deployments for workloads they have passed evaluation for.
+4. Avoid duplicate model calls unless additional evidence is worth the cost.
+5. Retry transient errors with bounded exponential backoff.
+6. Use a fallback only when it is compatible with the task.
+7. If all suitable routes fail, return a clear partial result or retry option.
+
+Do not assume every model has identical image, audio, tool-calling, or structured
+output support. Maintain a capability registry based on current documentation
+and tests.
+
+======================================================================
+17. SECURITY, PRIVACY, AND RESPONSIBLE USE
+======================================================================
+
+Security:
+- Keep API keys in a server-side secret manager.
+- Use TLS in transit and encryption at rest.
+- Enforce least-privilege access.
+- Validate uploaded files and scan for malicious content.
+- Restrict file size, type, dimensions, and processing time.
+- Prevent cross-user access to scans, reports, and assets.
+- Rate-limit abuse and expensive model operations.
+- Log security events without logging unnecessary personal data.
+- Patch dependencies and run regular security checks.
+
+Privacy:
+- Explain what images, audio, and prompts are sent to each provider.
+- Obtain consent before camera or microphone access.
+- Provide deletion and export controls.
+- Define retention periods for original images, derived crops, transcripts,
+  reports, and model logs.
+- Do not use private scans for training without clear, valid consent.
+- Review the privacy and retention terms of every inference provider.
+- Avoid uploading sensitive personal documents or biometric data unless the
+  feature is explicitly designed and legally reviewed for that use.
+
+Responsible outputs:
+- Mark uncertainty and distinguish evidence from inference.
+- Cite sources for factual claims.
+- Avoid definitive claims of authenticity, ownership, provenance, or value
+  without adequate evidence.
+- Use conservative handling for medical, electrical, chemical, vehicle,
+  machinery, and other safety-critical objects.
+- Recommend qualified professional review when needed.
+- Do not claim a generated image shows the real inside of a scanned object.
+
+======================================================================
+18. OBSERVABILITY AND OPERATIONS
+======================================================================
+
+Monitor:
+- scan success and failure rates
+- time to first useful result
+- total scan latency
+- model latency and error rates
+- external source retrieval success
+- cost per scan and per completed report
+- cache hit rate
+- user correction and satisfaction signals
+- citation coverage and evidence quality
+- hallucination and identity accuracy on evaluation sets
+- provider rate limits and quota usage
+
+Use trace IDs to connect a scan, retrieval operations, model calls, and report
+generation. Redact secrets and unnecessary user content. Keep a clear record
+of model and prompt versions so regressions can be investigated.
+
+Set alerts for elevated failure rates, unusual spending, provider outages, and
+database/storage problems.
+
+======================================================================
+19. EVALUATION AND QUALITY ASSURANCE
+======================================================================
+
+Create a benchmark set with:
+- common household objects
+- multiple visually similar products
+- rare or unfamiliar objects
+- damaged and partially obscured objects
+- objects shown from unusual angles
+- multiple objects in one image
+- low-light and blurry images
+- misleading labels or missing labels
+- objects with safety implications
+- examples where the correct answer is "unknown"
+
+Evaluate:
+- top-k identity accuracy
+- calibration of confidence
+- object segmentation quality
+- correctness of source-backed claims
+- citation precision and relevance
+- contradiction handling
+- rate of unsupported factual claims
+- ability to ask for missing information
+- latency and cost
+- performance across relevant user groups and image conditions
+
+Run regression tests whenever a model, prompt, provider, retrieval source, or
+schema changes. Compare hosted and open-weight deployments using the same test
+set. Do not route production traffic to a new model solely because it is newer.
+
+======================================================================
+20. PERFORMANCE AND COST CONTROLS
+======================================================================
+
+Cost controls:
+- Start with one primary model call and add specialist calls only when needed.
+- Resize images appropriately while retaining useful detail.
+- Cache public reference retrieval and non-personal results where permitted.
+- Avoid caching private outputs across users.
+- Use background jobs for lengthy research and reports.
+- Apply per-user quotas and abuse protection.
+- Track input/output usage per provider and feature.
+- Let users request a quick answer or a deeper research report.
+
+Performance:
+- Stream progress events where supported.
+- Return a useful preliminary result while deeper research continues.
+- Run independent retrieval tasks concurrently when safe.
+- Set bounded retries and timeouts.
+- Keep image preprocessing efficient.
+- Use asynchronous jobs for expensive tasks.
+- Make cancellation and retry controls available.
+
+Do not promise a specific response time until measured on the actual deployment,
+model, provider, region, and expected traffic.
+
+======================================================================
+21. DEPLOYMENT AND ENVIRONMENT CONFIGURATION
+======================================================================
+
+Suggested environments:
+- local development
+- shared test/staging
+- production
+
+Configuration should include:
+- META_MODEL_API_KEY
+- model IDs and endpoint configuration for each supported model
+- open-weight provider credentials
+- database connection string
+- object storage credentials
+- retrieval/search provider credentials
+- session/authentication secrets
+- rate limits and timeouts
+- retention settings
+- feature flags
+
+These are illustrative variable names, not official API requirements. Follow
+the exact authentication and request format in current provider documentation.
+Never commit secret values to source control or place them in frontend bundles.
+
+Use separate keys and accounts for development and production. Rotate exposed
+credentials immediately. Restrict production access and audit administrative
+actions.
+
+======================================================================
+22. DEVELOPMENT ROADMAP
+======================================================================
+
+PHASE 1 — WORKING PROTOTYPE
+- Build the web interface and authentication.
+- Implement image upload and camera capture.
+- Add a server-side Meta Model API adapter.
+- Integrate Muse Spark for candidate analysis.
+- Integrate SAM 3.1 where supported.
+- Return a structured profile with evidence and uncertainty.
+- Save scan history and allow deletion.
+
+PHASE 2 — GROUNDED KNOWLEDGE
+- Build source retrieval and claim-to-source linking.
+- Add profile sections for operation, components, uses, history, advantages,
+  limitations, maintenance, and safety.
+- Add follow-up questions grounded in retrieved evidence.
+- Build a source viewer and feedback controls.
+
+PHASE 3 — MULTIMODAL EXPERIENCE
+- Add Muse Voice Transcribe.
+- Add Muse Image for labelled illustrations.
+- Add Muse Wonder to selected deep-research workflows after evaluation.
+- Add multi-view scans, comparisons, and object passports.
+
+PHASE 4 — OPEN-WEIGHT INFERENCE
+- Deploy Muse Spark Open on a compatible provider.
+- Evaluate Muse Glimmer and deploy it for tasks it supports.
+- Benchmark accuracy, latency, reliability, and cost.
+- Implement routing and fallback rules based on measured performance.
+
+PHASE 5 — ADVANCED EXPLORATION
+- Add interactive 3D assets when suitable models exist.
+- Add object relationship graphs and timelines.
+- Add What-if Lab with explicit assumptions and validated calculations.
+- Add category-specific specialist modules.
+
+PHASE 6 — PRODUCTION HARDENING
+- Complete security and privacy reviews.
+- Run quality, load, and failure testing.
+- Add monitoring, backups, disaster recovery, and cost controls.
+- Review legal requirements, source licenses, and provider terms.
+- Publish transparent limitations and user guidance.
+
+Use Muse Code as an optional coding assistant during implementation. All
+generated code must be reviewed, tested, and checked for security before use.
+
+======================================================================
+23. TEAM AND RESPONSIBILITIES
+======================================================================
+
+A lean initial team may include:
+- Product lead: scope, user research, prioritization.
+- Frontend engineer: browser UI, capture, object exploration.
+- Backend/AI engineer: orchestration, model adapters, retrieval.
+- Data/infrastructure engineer: database, storage, deployments, monitoring.
+- Design/research support: interaction design, accessibility, evaluation data.
+- Domain experts as needed for specialist categories and safety review.
+
+One person may cover multiple roles in a prototype, but security, evidence
+quality, and model evaluation should not be ignored.
+
+======================================================================
+24. RISKS AND MITIGATIONS
+======================================================================
+
+Risk: incorrect identity
+Mitigation: multiple candidates, extra-photo prompts, reference matching,
+confidence calibration, and explicit unknown outcomes.
+
+Risk: hallucinated history or specifications
+Mitigation: retrieval, claim-level citations, primary-source preference, and
+unsupported-claim tests.
+
+Risk: false internal structure
+Mitigation: distinguish verified diagrams from generic diagrams and generated
+illustrations; never imply an exterior image proves internal details.
+
+Risk: provider outage or quota exhaustion
+Mitigation: bounded retries, status messages, provider monitoring, and compatible
+fallback routes. Do not promise a fallback that has not been tested.
+
+Risk: high inference cost
+Mitigation: model routing, caching where permitted, quotas, image resizing,
+and measured usage budgets.
+
+Risk: sensitive user uploads
+Mitigation: consent, access control, retention limits, deletion controls, and
+provider privacy review.
+
+Risk: open-weight deployment incompatibility
+Mitigation: confirm license, hardware, supported input types, serving format,
+and provider availability before implementation.
+
+Risk: unsafe instructions
+Mitigation: conservative policies, specialist review, authoritative safety
+sources, and professional referrals for high-risk tasks.
+
+Risk: outdated live information
+Mitigation: display retrieval timestamps, source scope, and refresh policies.
+
+======================================================================
+25. ACCEPTANCE CRITERIA
+======================================================================
+
+The initial release is ready for limited user testing when:
+- Users can upload an image and complete a scan in the browser.
+- The system returns candidate identities rather than forcing certainty.
+- Users can see which claims are observed, sourced, inferred, or unknown.
+- Important factual claims have traceable supporting references where available.
+- SAM 3.1 segmentation is integrated where the endpoint supports it.
+- The hosted Meta model integration uses documented endpoints and secure keys.
+- Model failures and rate limits produce controlled errors.
+- Users can view and delete their saved scans according to the retention policy.
+- The system does not present generated internal illustrations as verified facts.
+- A benchmark set measures identification quality and unsupported claims.
+- Monitoring records latency, errors, and cost without exposing secrets.
+
+Before claiming production readiness, complete security, privacy, accessibility,
+load, source-quality, and model evaluation work.
+
+======================================================================
+26. IMPLEMENTATION CHECKLIST
+======================================================================
+
+Before coding:
+[ ] Confirm access to the required Meta models and current API documentation.
+[ ] Confirm the supported input/output modalities of every model.
+[ ] Decide which hosted models will use Meta Model API.
+[ ] Select and test an open-weight inference provider.
+[ ] Confirm the hackathon-specific Muse Spark Open model identifier if using
+    Baseten: meta-models/muse-spark-open-1026.
+[ ] Define data retention, privacy, and consent rules.
+[ ] Create a representative object evaluation set.
+[ ] Define the structured object profile and claim/evidence schemas.
+
+During implementation:
+[ ] Build the provider-neutral model gateway.
+[ ] Keep credentials on the server.
+[ ] Validate all model outputs.
+[ ] Implement retrieval and claim-level evidence records.
+[ ] Add retry, timeout, rate-limit, and cancellation handling.
+[ ] Store images securely and enforce ownership.
+[ ] Add logs, traces, and cost measurements.
+[ ] Label generated illustrations clearly.
+[ ] Test unknown and ambiguous cases, not just easy examples.
+
+Before launch:
+[ ] Run regression and safety tests.
+[ ] Verify deletion behavior for database and stored files.
+[ ] Review provider privacy, retention, and licensing terms.
+[ ] Test provider outage and quota exhaustion scenarios.
+[ ] Check accessibility and browser compatibility.
+[ ] Publish limitations and user-facing privacy information.
+[ ] Confirm operational budgets and alerts.
+
+======================================================================
+27. FINAL ARCHITECTURAL PRINCIPLES
+======================================================================
+
+1. Meta-first AI: use the requested Meta models for supported AI tasks; do not
+   introduce OpenAI models into the intended model stack.
+2. Evidence before confidence: important claims should be traceable to sources
+   or explicitly marked as inference.
+3. Honest uncertainty: the application must be allowed to say "not enough
+   information."
+4. Modular model access: keep model providers behind adapters.
+5. Open-weight flexibility: deploy Muse Spark Open and Muse Glimmer only after
+   confirming their actual capabilities and infrastructure requirements.
+6. Clear visual provenance: generated illustrations are not factual evidence.
+7. User privacy: collect the minimum necessary data and provide meaningful
+   control over retention and deletion.
+8. Live means sourced: current information must come from a current source.
+9. Safety first: high-consequence claims require stronger evidence and review.
+10. Evaluate continuously: measure quality, latency, reliability, and cost
+    before expanding model use.
+
+The product's ambition is to help users understand what an object is, how it
+works, what it may contain, where it came from, how it is used, and what is
+known about it. The architecture supports that ambition while making clear
+which conclusions are verified, inferred, illustrative, or still unknown.

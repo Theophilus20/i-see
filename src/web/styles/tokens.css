@@ -1,0 +1,190 @@
+/*
+ * I SEE design tokens.
+ * Palette after Meta's design language: Meta Blue is reserved for actions; text is
+ * deep slate; surfaces are white for information and near-black for immersive
+ * moments (the darkroom). Evidence is coloured in three validated hue families
+ * (teal, grape, tomato) and always also carries a glyph, a line pattern and a word.
+ */
+:root {
+  color-scheme: light;
+
+  /* Action */
+  --action: #0064e0;
+  --action-hover: #0143b5;
+  --action-press: #004bb9;
+  --action-tint: #e8f3ff;
+  --on-action: #ffffff;
+
+  /* Ink */
+  --ink: #1c2b33;
+  --ink-2: #5d6c7b;
+  --ink-3: #67788a; /* AA on white for small text */
+  --ink-faint: #8595a4; /* decorative only */
+
+  /* Surfaces */
+  --bg: #ffffff;
+  --surface: #f1f4f7;
+  --surface-2: #f7f8fa;
+  --plate: #f2f0e6; /* linen: the backdrop photographs sit on */
+  --line: #dee3e9;
+  --line-2: #ced0d4;
+  --scrim: rgb(28 43 51 / 0.56);
+
+  /* Evidence (marks, not text) */
+  --seen: #0b8a78;
+  --cited: #7b4ae2;
+  --reasoned: #c2541e;
+  --guess: #c2541e;
+  --unknown: #6e7f8f;
+  --yours: #1c2b33;
+  --seen-tint: #e3f4f1;
+  --cited-tint: #efe9fc;
+  --reasoned-tint: #fbece4;
+  --unknown-tint: #eef1f4;
+
+  /* Status (reserved; always with an icon and a word) */
+  --ok: #31a24c;
+  --warn: #f7b928;
+  --warn-ink: #7a5300;
+  --danger: #e41e3f;
+  --danger-tint: #fdecef;
+  --warn-tint: #fff6dc;
+
+  /* Type */
+  --font-display: 'Figtree', 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-ui: 'Atkinson Hyperlegible Next', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-voice: 'Literata', ui-serif, Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --t-xs: 0.8125rem; /* 13 */
+  --t-sm: 0.9375rem; /* 15 */
+  --t-md: 1.0625rem; /* 17 */
+  --t-lg: 1.25rem; /* 20 */
+  --t-xl: 1.5rem; /* 24 */
+  --t-2xl: 2rem; /* 32 */
+  --t-3xl: 2.75rem; /* 44 */
+  --t-4xl: clamp(2.6rem, 6.4vw, 4.25rem);
+
+  /* Shape and space */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+  --r-pill: 100px;
+  --gutter: clamp(16px, 4vw, 40px);
+  --max: 1320px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 150ms;
+  --med: 200ms;
+  --slow: 420ms;
+
+  --shadow-1: 0 1px 2px rgb(28 43 51 / 0.06), 0 1px 1px rgb(28 43 51 / 0.04);
+  --shadow-2: 0 8px 24px rgb(28 43 51 / 0.1), 0 2px 6px rgb(28 43 51 / 0.06);
+  --focus-ring: 0 0 0 3px var(--bg), 0 0 0 6px var(--action);
+}
+
+/* Dark: chosen, not flipped. Meta Blue Light carries actions on dark. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --action: #47a5fa;
+    --action-hover: #6db8fb;
+    --action-press: #2f8fe6;
+    --action-tint: #12304f;
+    --on-action: #0b1620;
+    --ink: #e4e6eb;
+    --ink-2: #b0b3b8;
+    --ink-3: #a3a8af;
+    --ink-faint: #7b8088;
+    --bg: #18191a;
+    --surface: #242526;
+    --surface-2: #1f2021;
+    --plate: #2a2925;
+    --line: #333536;
+    --line-2: #44474a;
+    --scrim: rgb(0 0 0 / 0.64);
+    --seen: #1f9c88;
+    --cited: #9278f0;
+    --reasoned: #d96c3a;
+    --guess: #d96c3a;
+    --unknown: #8a96a3;
+    --yours: #e4e6eb;
+    --seen-tint: #13302b;
+    --cited-tint: #2a2347;
+    --reasoned-tint: #3a2419;
+    --unknown-tint: #26292c;
+    --warn-ink: #f7b928;
+    --danger-tint: #3d1820;
+    --warn-tint: #3a2f12;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-2: 0 10px 30px rgb(0 0 0 / 0.5);
+  }
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --action: #47a5fa;
+  --action-hover: #6db8fb;
+  --action-press: #2f8fe6;
+  --action-tint: #12304f;
+  --on-action: #0b1620;
+  --ink: #e4e6eb;
+  --ink-2: #b0b3b8;
+  --ink-3: #a3a8af;
+  --ink-faint: #7b8088;
+  --bg: #18191a;
+  --surface: #242526;
+  --surface-2: #1f2021;
+  --plate: #2a2925;
+  --line: #333536;
+  --line-2: #44474a;
+  --scrim: rgb(0 0 0 / 0.64);
+  --seen: #1f9c88;
+  --cited: #9278f0;
+  --reasoned: #d96c3a;
+  --guess: #d96c3a;
+  --unknown: #8a96a3;
+  --yours: #e4e6eb;
+  --seen-tint: #13302b;
+  --cited-tint: #2a2347;
+  --reasoned-tint: #3a2419;
+  --unknown-tint: #26292c;
+  --warn-ink: #f7b928;
+  --danger-tint: #3d1820;
+  --warn-tint: #3a2f12;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 10px 30px rgb(0 0 0 / 0.5);
+}
+
+/* Always dark, whatever the theme: the home page's hero and its dark bands. */
+.surface-dark {
+  color-scheme: dark;
+  --action: #47a5fa;
+  --action-hover: #6db8fb;
+  --on-action: #0b1620;
+  --ink: #e4e6eb;
+  --ink-2: #b0b3b8;
+  --ink-3: #a3a8af;
+  --ink-faint: #7b8088;
+  --bg: #111213;
+  --surface: #1c1e21;
+  --surface-2: #17181a;
+  --line: #2e3033;
+  --line-2: #3e4144;
+  --seen: #1f9c88;
+  --cited: #9278f0;
+  --reasoned: #d96c3a;
+  --guess: #d96c3a;
+  --unknown: #8a96a3;
+  --focus-ring: 0 0 0 3px #111213, 0 0 0 6px #47a5fa;
+}
+
+/* Accessibility preferences set in Settings */
+:root[data-type='large'] {
+  font-size: 118.75%;
+}
+:root[data-contrast='bold'] {
+  --ink-2: var(--ink);
+  --ink-3: var(--ink);
+  --line: var(--line-2);
+}
