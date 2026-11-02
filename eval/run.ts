@@ -63,7 +63,7 @@ async function live(casesPath: string): Promise<CaseResult[]> {
   const sharp = (await import('sharp')).default;
   const cfg = loadConfig();
   const { app, health, jobs } = createApp({ cfg });
-  if (health().mode !== 'live') throw new Error('No model provider configured. Set MODEL_API_KEY (see .env.example).');
+  if (health().mode !== 'live') throw new Error('No model provider configured. Set MODEL_API_KEY (see docs/SETTINGS.md).');
   const cases = JSON.parse(readFileSync(casesPath, 'utf8')) as EvalCase[];
   const results: CaseResult[] = [];
   for (const c of cases) {

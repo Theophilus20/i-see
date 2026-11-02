@@ -25,11 +25,18 @@ Requires Node 22.9 or later.
 
 ```bash
 npm install
-cp .env.example .env          # add MODEL_API_KEY from https://dev.meta.ai
 npm run dev                   # web on http://localhost:5173, API on :8787
 ```
 
-On Windows (PowerShell), use `Copy-Item .env.example .env` instead of `cp`.
+To examine your own photos, create a file named `.env` in the project folder with your key
+from https://dev.meta.ai on one line, then restart `npm run dev`:
+
+```
+MODEL_API_KEY=your-key-here
+```
+
+`.env` is never uploaded to GitHub. Every other setting is optional and explained in
+`docs/SETTINGS.md`.
 
 Without a key the app still runs: it offers two **sample runs** (no model is called; the
 real firewall and calculator still check them).
@@ -297,5 +304,6 @@ npm run eval -- --samples      # or: npm run eval -- eval/cases.json  (live)
 - `docs/ARCHITECTURE.md`: pipeline, firewall, calculator, privacy, what was and was not
   verified, deviations from the brief
 - `docs/MODELS.md`: which Meta model does what, endpoints, privacy tiers, capability registry
+- `docs/SETTINGS.md`: every setting, what it does, and its default
 - `docs/DESIGN.md`: the visual system and why
 - `docs/MUSE_CODE.md`: continuing development with Muse Code

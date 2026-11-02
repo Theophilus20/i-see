@@ -470,6 +470,24 @@ describe('regions first, names second', () => {
   });
 });
 
+describe('a scan step that fails', () => {
+  it('says plainly why, and writes the reason to the log', async () => {
+    const { app, jobs } = makeApp();
+    const { base, server } = await listen(app);
+    const before = logLines.length;
+    mock.failNext('/v1/chat/completions', 404, 1, undefined, { error: { message: 'The model muse-spark-1.3 does not exist.', code: 'model_not_found' } });
+    const events = await runScanOverHttp(base, scanBody());
+    jobs.close();
+    server.close();
+    const stage = events.find((e) => e.type === 'stage' && e.id === 'identify' && e.status === 'error') as Extract<ScanEvent, { type: 'stage' }> | undefined;
+    expect(stage?.note).toMatch(/does not offer the model/);
+    const logged = logLines.slice(before).join('\n');
+    expect(logged).toMatch(/scan step failed/);
+    expect(logged).toMatch(/model_not_found/);
+    expect(logged).not.toMatch(/test-secret-key/);
+  });
+});
+
 describe('what a person taught (the Train game)', () => {
   it('sends their corrections for this kind of object as hints, and uses their word for the same part', async () => {
     const { app, jobs } = makeApp();

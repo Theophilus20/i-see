@@ -276,6 +276,7 @@ export function createApp(deps: AppDeps) {
       signal: job.controller.signal,
       requestEscalation: (r) => jobs.awaitEscalation(job, r.id),
       mode: 'live',
+      log: (level, msg, data) => log(level, msg, { job: job.id, ...data }),
     }).catch((e: unknown) => {
       log('error', 'scan crashed', { job: job.id, error: (e as Error)?.stack ?? String(e) });
       if (job.finishedAt === null) emit({ type: 'error', code: 'internal', message: 'Something went wrong while building the profile.', retryable: true, stage: null });

@@ -44,6 +44,8 @@ export function Camera({ live, onScan, onAdd, onClose }: { live: boolean; onScan
   const [ready, setReady] = useState(false);
   const [seen, setSeen] = useState<Seen | null>(null);
   const [looking, setLooking] = useState(false);
+  /** Live recognition calls that failed in a row: after a few, the camera says so instead of waiting. */
+  const [misses, setMisses] = useState(0);
   const [auto, setAuto] = useState(settings.autoScan);
   const [allowLive, setAllowLive] = useState<boolean>(!!settings.consentAt);
   const [askLive, setAskLive] = useState(live && !settings.consentAt && settings.liveRecognition);
@@ -105,13 +107,15 @@ export function Camera({ live, onScan, onAdd, onClose }: { live: boolean; onScan
       try {
         const r = await glance(await frameAsUpload(v), { privacyTier: settings.privacyTier, language: settings.language, consent: { sendImages: true, acknowledgedAt: settings.consentAt ?? new Date().toISOString() } }, abort.signal);
         if (stop) return;
+        setMisses(0);
         setSeen((prev) => {
           if (!r.label) return null;
           const same = prev && prev.label.toLowerCase() === r.label.toLowerCase();
           return { label: r.label, confidence: same ? Math.max(r.confidence, (prev.confidence + r.confidence) / 2) : r.confidence, hint: r.hint, at: Date.now() };
         });
       } catch {
-        /* recognition is a nicety: keep the camera going */
+        // Recognition is a nicety: keep the camera going, and after a few failures say so.
+        if (!stop && !abort?.signal.aborted) setMisses((n) => n + 1);
       } finally {
         if (!stop) setLooking(false);
       }
@@ -268,7 +272,9 @@ export function Camera({ live, onScan, onAdd, onClose }: { live: boolean; onScan
                 ? 'Live recognition works when I SEE is online. You can still take photos.'
                 : !allowLive
                   ? 'Tap the button to take the photo and start the scan.'
-                  : seen
+                  : misses >= 3 && !seen
+                    ? 'Live recognition is not working right now. Tap the button to take the photo and scan it.'
+                    : seen
                     ? lockStart
                       ? `Hold steady: scanning the ${seen.label.toLowerCase()}…`
                       : (seen.hint ?? (auto ? 'Hold steady to scan it automatically.' : 'Tap the button to scan it.'))

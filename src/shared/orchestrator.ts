@@ -43,9 +43,32 @@ export interface OrchestratorDeps {
   newId?: () => string;
   signal?: AbortSignal;
   mode?: Trace['mode'];
+  /** Where a failed step's reason is written (the server's log). The person sees a plain note. */
+  log?: (level: 'info' | 'warn' | 'error', msg: string, data?: Record<string, unknown>) => void;
 }
 
 class Aborted extends Error {}
+
+/** What kind of failure an error from a model service is, for a plain note that helps. */
+export function failureKind(e: unknown): 'unreachable' | 'key' | 'model' | 'busy' | 'slow' | 'other' {
+  const o = (e ?? {}) as { code?: unknown; status?: unknown };
+  const code = String(o.code ?? '');
+  const status = Number(o.status ?? 0);
+  if (code === 'network' || code === 'circuit_open') return 'unreachable';
+  if (status === 401 || status === 403) return 'key';
+  if (status === 404 || /model_not_found|not_found/.test(code)) return 'model';
+  if (status === 429 || /rate/.test(code)) return 'busy';
+  if (code === 'timeout' || status === 504) return 'slow';
+  return 'other';
+}
+const FAILURE_NOTE: Record<ReturnType<typeof failureKind>, string> = {
+  unreachable: 'I SEE could not reach its analysis service. Nothing is wrong with your photo.',
+  key: 'The analysis service did not accept this server’s key. Nothing is wrong with your photo.',
+  model: 'The analysis service does not offer the model this server asked for. Nothing is wrong with your photo.',
+  busy: 'The analysis service is busy right now. Nothing is wrong with your photo: try again in a minute.',
+  slow: 'The analysis service took too long to answer. Please try again.',
+  other: 'The photo could not be read this time.',
+};
 
 function randomId(): string {
   const a = new Uint8Array(9);
@@ -158,6 +181,11 @@ export async function runScan(req: ScanRequest, deps: OrchestratorDeps): Promise
     deps.emit({ type: 'stage', id, label: STAGE_LABEL[id], status: status === 'done' ? 'done' : status === 'skipped' ? 'skip' : 'error', model: t?.model ?? null, provider: t?.provider ?? null, ms: t?.ms ?? null, note });
   };
   const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 200);
+  /** Writes a failed step's reason to the server's log (status, code and the service's message; never keys or photos). */
+  const logFailure = (stage: string, e: unknown) => {
+    const o = (e ?? {}) as { status?: unknown; code?: unknown; provider?: unknown };
+    deps.log?.('warn', 'scan step failed', { stage, status: o.status ?? null, code: o.code ?? null, provider: o.provider ?? null, error: errText(e) });
+  };
 
   const views: ImagePayload[] = req.views.map((v) => ({ mime: v.mime, base64: v.base64, width: v.width, height: v.height, label: v.label }));
   const viewMeta: View[] = req.views.map((v, index) => ({
@@ -194,16 +222,14 @@ export async function runScan(req: ScanRequest, deps: OrchestratorDeps): Promise
     try {
       identified = await active.identify(identifyInput, ctx());
     } catch (e) {
-      void errText(e);
-      const code = (e as { code?: unknown })?.code;
-      const unreachable = code === 'network' || code === 'circuit_open';
-      if (unreachable) {
+      logFailure('identify', e);
+      const kind = failureKind(e);
+      finish('identify', 'error', null, FAILURE_NOTE[kind]);
+      if (kind === 'unreachable') {
         // Nothing was wrong with the photo: the server could not get to the analysis service.
-        finish('identify', 'error', null, 'I SEE could not reach its analysis service. Nothing is wrong with your photo.');
         deps.emit({ type: 'error', code: 'service_unreachable', message: 'The analysis service could not be reached. Nothing was saved.', retryable: true, stage: 'identify' });
       } else {
-        finish('identify', 'error', null, 'The photo could not be read this time.');
-        deps.emit({ type: 'error', code: 'identify_failed', message: 'The photo could not be analysed. Nothing was saved.', retryable: true, stage: 'identify' });
+        deps.emit({ type: 'error', code: 'identify_failed', message: kind === 'other' ? 'The photo could not be analysed. Nothing was saved.' : `${FAILURE_NOTE[kind]} Nothing was saved.`, retryable: true, stage: 'identify' });
       }
       return null;
     }
@@ -325,6 +351,7 @@ export async function runScan(req: ScanRequest, deps: OrchestratorDeps): Promise
     ]);
 
     let regions: Region[];
+    if (seg instanceof Error) logFailure('segment', seg);
     if (seg instanceof Error || seg.value.regions.length === 0) {
       regions = regionsFromPointers(identify, v0);
       const why = seg instanceof Error ? 'Exact outlines could not be drawn this time.' : 'No clear parts could be marked.';
@@ -389,7 +416,7 @@ export async function runScan(req: ScanRequest, deps: OrchestratorDeps): Promise
         seen.add(x.url);
         sources.push({ ...x, id: `s${sources.length + 1}` });
       }
-    } else if (researched instanceof Error) void errText(researched);
+    } else if (researched instanceof Error) logFailure('research', researched);
     // Apply the deep check: the pages it read become sources, and a clear answer goes to the top.
     if (decided && !(decided instanceof Error)) {
       const seen = new Set(sources.map((x) => x.url));
@@ -421,7 +448,7 @@ export async function runScan(req: ScanRequest, deps: OrchestratorDeps): Promise
         if (rs.status === 'skipped' && sources.length) rs.status = 'done';
       }
       deps.emit({ type: 'stage', id: 'retrieve', label: STAGE_LABEL.retrieve, status: rs?.status === 'error' ? 'error' : 'done', model: rs?.model ?? null, provider: rs?.provider ?? null, ms: rs?.ms ?? null, note: combined });
-    } else if (decided instanceof Error) void errText(decided);
+    } else if (decided instanceof Error) logFailure('decide', decided);
     deps.emit({ type: 'sources', sources });
     checkAbort();
 
@@ -436,7 +463,7 @@ export async function runScan(req: ScanRequest, deps: OrchestratorDeps): Promise
       finish('compose', 'done', composed, null, 'compose');
     } catch (e) {
       finish('compose', 'error', null, 'The full write-up could not be finished this time. Showing what could be seen.');
-      void errText(e);
+      logFailure('compose', e);
     }
     checkAbort();
 
@@ -465,7 +492,7 @@ export async function runScan(req: ScanRequest, deps: OrchestratorDeps): Promise
         deps.emit({ type: 'candidates', candidates, status: identityStatus(candidates) });
       } catch (e) {
         finish('resolve', 'error', null, 'The doubt could not be settled this time.');
-        void errText(e);
+        logFailure('resolve', e);
       }
     } else {
       stages.push({ id: 'resolve', label: STAGE_LABEL.resolve, model: null, provider: null, status: 'skipped', ms: null, note: 'Not needed: one candidate is clearly ahead.', usage: null });
