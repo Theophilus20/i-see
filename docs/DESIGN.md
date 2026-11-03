@@ -2,7 +2,7 @@
 
 ## The idea
 
-MMost apps that identify things give a short answer without showing how they reached it. I SEE works differently: it uses the photograph as evidence and connects each explanation to the exact part of the image or the source of the information. Its design is inspired by scientific illustrations and museum displays. It shows the photograph on a simple background, with numbered parts, lines pointing to specific details in the image, and a guide explaining what each line means.
+Most apps that identify things give a short answer without showing how they reached it. I SEE works differently: it uses the photograph as evidence and connects each explanation to the exact part of the image or the source of the information. Its design is inspired by scientific illustrations and museum displays. It shows the photograph on a simple background, with numbered parts, lines pointing to specific details in the image, and a guide explaining what each line means.
 
 ## Meta's palette, used the way Meta uses it
 
