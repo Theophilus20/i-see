@@ -2,11 +2,7 @@
 
 ## The idea
 
-Most "identify anything" apps answer in one confident paragraph. I SEE is designed around
-the opposite: **the photograph is the evidence, and every sentence is pinned to it or to a
-source**. The visual language borrows from scientific plates and museum labels: a
-photograph on a linen ground, numbered parts, leader lines from a sentence to the pixels
-it is about, and a key that says what each kind of line means.
+MMost apps that identify things give a short answer without showing how they reached it. I SEE works differently: it uses the photograph as evidence and connects each explanation to the exact part of the image or the source of the information. Its design is inspired by scientific illustrations and museum displays. It shows the photograph on a simple background, with numbered parts, lines pointing to specific details in the image, and a guide explaining what each line means.
 
 ## Meta's palette, used the way Meta uses it
 
