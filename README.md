@@ -93,10 +93,6 @@ scan can take minutes, while the free plan stops a request after five.
 
 Every push to GitHub deploys again by itself.
 
-**Render.** `render.yaml` describes the service. On render.com choose **New > Blueprint**,
-pick this repository, and enter your `MODEL_API_KEY` when asked. A free service sleeps after
-15 minutes without visitors and takes about a minute to wake.
-
 **Anywhere else.** Build with `npm ci && npm run build`, start with `npm start`, and set
 `HOST=0.0.0.0`, `TRUST_PROXY=1` (when behind the host's proxy) and `MODEL_API_KEY`. The host
 sets `PORT`.
@@ -309,7 +305,7 @@ A route shows as unavailable until its settings are filled in `.env`.
 
 ```bash
 npm run typecheck
-npm test                       # 282 tests
+npm test                       # 303 tests
 npm run build:preview && node scripts/e2e.cjs   # screenshots at 1440 px, 390 px, dark
 npm run e2e:live               # a live scan through the real UI and gateway, against a mock Meta API
 npm run eval -- --samples      # or: npm run eval -- eval/cases.json  (live)
