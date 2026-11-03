@@ -227,7 +227,7 @@ export function Inside({ profile, photoBlob, illustration, cutaway, onRegion, on
       setState((s) => ({ ...s, inside: 'idle' }));
     } catch (e) {
       const code = (e as { code?: string }).code ?? '';
-      const general = ['offline', 'rate_limited', 'busy', 'provider_paused', 'unconfigured'].includes(code);
+      const general = ['offline', 'interrupted', 'rate_limited', 'busy', 'provider_paused', 'unconfigured'].includes(code);
       setState((s) => ({
         ...s,
         inside: 'error',

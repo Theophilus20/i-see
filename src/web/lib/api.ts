@@ -8,7 +8,7 @@ import { VerifyResponseSchema, type VerifyRequest,
   AskResponseSchema,
   CompareResponseSchema,
   GlanceResponseSchema,
-  CutawayResponseSchema,
+  CutawayJobSchema,
   TranslateResponseSchema,
   IllustrateResponseSchema,
   InsideResponseSchema,
@@ -29,6 +29,7 @@ import { scrubProviderNames } from '@shared/text';
  */
 const FRIENDLY: Record<string, string> = {
   offline: 'I SEE is offline right now. Check your internet connection, then try again. The examples still work.',
+  interrupted: 'The connection to I SEE was interrupted. Please try again.',
   rate_limited: 'Lots of requests at once. Give it a few seconds and try again.',
   busy: 'I SEE is busy with other scans. Please try again in a minute.',
   too_large: 'That photo or recording is too large. Try a smaller one.',
@@ -87,12 +88,21 @@ export function userMessage(e: unknown, fallback = 'Something went wrong. Please
   return fallback;
 }
 
+/**
+ * A request that got no answer at all. If the device itself is offline, say so; otherwise the
+ * connection dropped part-way (the phone paused the page, or the server restarted).
+ */
+function unanswered(): ApiError {
+  if (typeof navigator !== 'undefined' && (navigator as { onLine?: boolean }).onLine === false) return new ApiError('offline', 'The I SEE server could not be reached.', 0, true);
+  return new ApiError('interrupted', 'The request got no answer from the I SEE server.', 0, true);
+}
+
 async function call<T>(path: string, init: RequestInit, schema: z.ZodType<T>): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${API_PREFIX}${path}`, { ...init, headers: { 'content-type': 'application/json', ...(init.headers ?? {}) } });
   } catch {
-    throw new ApiError('offline', 'The I SEE server could not be reached.', 0, true);
+    throw unanswered();
   }
   const text = await res.text();
   let body: unknown = null;
@@ -217,7 +227,7 @@ export async function transcribe(wav: Blob, keywords: string[], language: string
   try {
     res = await fetch(`${API_PREFIX}/transcribe`, { method: 'POST', body: form });
   } catch {
-    throw new ApiError('offline', 'The I SEE server could not be reached.', 0, true);
+    throw unanswered();
   }
   const body = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) {
@@ -232,11 +242,31 @@ export async function transcribe(wav: Blob, keywords: string[], language: string
 type Upload = { mime: string; base64: string; width: number; height: number; label: null };
 type Consent = { sendImages: true; acknowledgedAt: string };
 
+/**
+ * Draws the cutaway. It can take several minutes, longer than the hosting keeps one request
+ * open, so it runs in the background on the server and this asks every few seconds whether it
+ * is ready. A short drop in the connection (a phone changing networks) is waited out.
+ */
 export async function makeCutaway(
   req: { digest: ProfileDigest; inside: { kind: string; brief: string; parts: string[] } | null; view: Upload | null; consent: Consent | null; privacyTier: 'private' | 'contributor'; language: string },
   signal?: AbortSignal,
 ) {
-  return call('/cutaway', { method: 'POST', body: JSON.stringify(req), signal }, CutawayResponseSchema);
+  const { jobId } = await call('/cutaway?background=1', { method: 'POST', body: JSON.stringify(req), signal }, z.object({ jobId: z.string() }));
+  let misses = 0;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 4000));
+    if (signal?.aborted) throw new ApiError('cancelled', 'Stopped.', 0, false);
+    try {
+      const r = await call(`/cutaway/jobs/${encodeURIComponent(jobId)}`, { method: 'GET', signal }, CutawayJobSchema);
+      misses = 0;
+      if (r.status === 'done') return r.result;
+    } catch (e) {
+      if (e instanceof ApiError && (e.code === 'offline' || e.code === 'interrupted') && ++misses < 15) continue;
+      // Gone: the server restarted while drawing.
+      if (e instanceof ApiError && e.code === 'not_found') throw new ApiError('interrupted', e.detail, e.status, true);
+      throw e;
+    }
+  }
 }
 
 export async function translateTexts(texts: string[], language: string, signal?: AbortSignal) {

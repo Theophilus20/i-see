@@ -32,13 +32,25 @@ const server = serve({ fetch: app.fetch, port: cfg.port, hostname: cfg.host }, (
   void runModelCheck(cfg, log);
 });
 
-const shutdown = () => {
-  jobs.close();
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 3000).unref();
+/**
+ * Stops taking new requests and lets the ones in progress finish before exiting. A new
+ * deployment sends SIGTERM to the old one while scans and drawings may still be running on
+ * it; ending at once would cut them off. railway.json allows 300 seconds before a hard stop.
+ */
+let closing = false;
+const shutdown = (graceMs: number) => {
+  if (closing) return;
+  closing = true;
+  log('info', 'Shutting down once the requests in progress finish', { graceMs });
+  const exit = () => {
+    jobs.close();
+    process.exit(0);
+  };
+  server.close(exit);
+  setTimeout(exit, graceMs).unref();
 };
 // A checked, labelled cutaway can take a few minutes; do not cut the request off at Node's 5-minute default.
 (server as unknown as { requestTimeout: number; headersTimeout: number }).requestTimeout = 12 * 60_000;
 
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+process.on('SIGINT', () => shutdown(3000));
+process.on('SIGTERM', () => shutdown(290_000));

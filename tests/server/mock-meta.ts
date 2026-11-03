@@ -346,6 +346,10 @@ export class MockMeta {
   samDropLast = 0;
   /** Refuse the extra image-quality settings, as an API that does not know them would. */
   rejectImageQuality = false;
+  /** Accept only these image sizes and refuse any other, as the real API does; null accepts any. */
+  imageSizes: string[] | null = null;
+  /** Answer every Muse Image request with this error status; null answers normally. */
+  imageStatus: number | null = null;
 
   failNext(prefix: string, status: number, times = 1, headers?: Record<string, string>, body?: unknown): void {
     for (let i = 0; i < times; i++) this.failures.push({ prefix, status, headers, body });
@@ -497,6 +501,9 @@ export class MockMeta {
         return json(200, { id: 'resp_w', output: [{ type: 'reasoning', summary: [] }, { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(RESOLVE), annotations: [] }] }], usage: { input_tokens: 900, output_tokens: 400, output_tokens_details: { reasoning_tokens: 300 } } });
       }
       if (body.model === 'muse-image-1.0') {
+        if (this.imageStatus) return json(this.imageStatus, { error: { message: 'Not allowed.', type: 'invalid_request_error', code: 'forbidden' } });
+        const size = body.tools?.[0]?.size;
+        if (this.imageSizes && size !== undefined && !this.imageSizes.includes(size)) return json(400, { error: { message: `\`tools[0]\`: unknown value \`${size}\``, type: 'invalid_request_error', code: 'invalid_value', param: 'tools[0]' } });
         if (this.rejectImageQuality && body.tools?.[0]?.quality) return json(400, { error: { message: 'Unknown parameter: quality', type: 'invalid_request_error', code: 'unknown_parameter', param: 'tools[0].quality' } });
         return json(200, { id: 'resp_i', output: [{ type: 'reasoning', summary: [] }, { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Here is your image.' }] }, { type: 'image_generation_call', id: 'ig_1', status: 'completed', result: Array.isArray(body.input) ? PNG_800x600 : PNG_1PX }], usage: { input_tokens: 50, output_tokens: 10 } });
       }

@@ -232,6 +232,9 @@ export const CutawayResponseSchema = z.object({
 });
 export type CutawayResponse = z.infer<typeof CutawayResponseSchema>;
 
+/** Asking about a drawing started in the background: still running, or finished. */
+export const CutawayJobSchema = z.discriminatedUnion('status', [z.object({ status: z.literal('running') }), z.object({ status: z.literal('done'), result: CutawayResponseSchema })]);
+
 export const TranslateRequestSchema = z.object({
   texts: z.array(z.string().max(400)).min(1).max(80),
   language: z.string().min(2).max(35),

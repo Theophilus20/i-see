@@ -12,7 +12,9 @@ import { createApp, scalePath } from '../../server/app';
 import { loadConfig, type Config } from '../../server/config';
 import { setLogSink } from '../../server/log';
 import { CircuitBreakers, readSse } from '../../server/meta/http';
-import { InsideResponseSchema, CutawayResponseSchema, VerifyResponseSchema, AskResponseSchema, ScanEventSchema, type ScanEvent } from '../../src/shared/api';
+import { sizeFor } from '../../server/meta/tasks';
+import { makeCutaway as makeCutawayFromApp } from '../../src/web/lib/api';
+import { InsideResponseSchema, CutawayResponseSchema, CutawayJobSchema, VerifyResponseSchema, AskResponseSchema, ScanEventSchema, type ScanEvent } from '../../src/shared/api';
 import { ProfileSchema, type Profile, digestOf } from '../../src/shared/schema';
 import { setSecondOpinion, setMarksAnswer, setCheckAnswer, setCloseAnswer, MockMeta, setDecideAnswer, setMarkNamesBlank, setDrawingPartAnswer, TEST_KEY } from './mock-meta';
 
@@ -913,9 +915,9 @@ describe('follow-up endpoints', () => {
     expect(text).not.toMatch(/Show clearly:[^.]*(Bumper|Door|Wing mirror|Fuel tank|Exhaust)/);
     expect(out.labels!.expected.join(' ')).not.toMatch(/Bumper|Door|Wing mirror|Headlight|emblem|Fuel tank/);
     expect(out.regions.every((r) => !/Bumper|Door|mirror|Headlight|emblem/i.test(r.label))).toBe(true);
-    // Drawn at Muse Image's full 2K size in the photo's shape, at its highest quality.
+    // Drawn in the photo's shape, using a size Meta documents, at its highest quality.
     expect(drawing.tools[0]).toMatchObject({ type: 'image_generation', quality: 'high' });
-    expect(['1600x1600', '1920x1280', '1280x1920', '1792x1344', '1344x1792', '2048x1152', '1152x2048', '2352x1008']).toContain(drawing.tools[0].size);
+    expect(['1024x1024', '1536x1024', '1024x1536']).toContain(drawing.tools[0].size);
   });
 
   it('drawing: if the quality settings are refused, asks again without them and still uses the references', async () => {
@@ -937,6 +939,105 @@ describe('follow-up endpoints', () => {
     } finally {
       mock.rejectImageQuality = false;
     }
+  });
+
+  it('cutaway in the background: answers at once, then hands over the drawing when asked', async () => {
+    const { app } = makeApp();
+    const view = scanBody().views[0];
+    const start = await app.request('/api/v1/cutaway?background=1', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ digest: digestOf(profile), inside: { kind: 'machine', brief: 'A moka pot.', parts: ['Boiler'] }, view, consent: { sendImages: true, acknowledgedAt: 'x' } }),
+    });
+    expect(start.status).toBe(202);
+    const { jobId } = (await start.json()) as { jobId: string };
+    let answer: ReturnType<typeof CutawayJobSchema.parse> = { status: 'running' };
+    for (let i = 0; i < 200 && answer.status === 'running'; i++) {
+      const poll = await app.request(`/api/v1/cutaway/jobs/${jobId}`);
+      expect(poll.status).toBe(200);
+      answer = CutawayJobSchema.parse(await poll.json());
+      if (answer.status === 'running') await new Promise((r) => setTimeout(r, 25));
+    }
+    expect(answer.status).toBe('done');
+    if (answer.status === 'done') expect(answer.result.image.base64.length).toBeGreaterThan(100);
+    // An unknown or expired drawing.
+    const gone = await app.request('/api/v1/cutaway/jobs/not-a-drawing');
+    expect(gone.status).toBe(404);
+    expect(((await gone.json()) as { error: { code: string } }).error.code).toBe('not_found');
+  });
+
+  it('cutaway in the background: a failed drawing hands back the same error a direct request would', async () => {
+    const { app } = makeApp();
+    const view = scanBody().views[0];
+    mock.imageStatus = 403;
+    try {
+      const start = await app.request('/api/v1/cutaway?background=1', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ digest: digestOf(profile), inside: null, view: null, consent: null }),
+      });
+      expect(start.status).toBe(202);
+      const { jobId } = (await start.json()) as { jobId: string };
+      let poll = await app.request(`/api/v1/cutaway/jobs/${jobId}`);
+      for (let i = 0; i < 200 && poll.status === 200; i++) {
+        await new Promise((r) => setTimeout(r, 25));
+        poll = await app.request(`/api/v1/cutaway/jobs/${jobId}`);
+      }
+      expect(poll.status).toBe(502);
+      expect(((await poll.json()) as { error: { code: string } }).error.code).toBe('provider_auth');
+    } finally {
+      mock.imageStatus = null;
+    }
+  });
+
+  it('cutaway from the app: starts it in the background and waits for it over short requests', async () => {
+    const { app } = makeApp();
+    const { base, server } = await listen(app);
+    const realFetch = globalThis.fetch;
+    const paths: string[] = [];
+    globalThis.fetch = ((url: string, init?: RequestInit) => {
+      paths.push(`${init?.method ?? 'GET'} ${url}`);
+      return realFetch(`${base}${url}`, init);
+    }) as typeof fetch;
+    try {
+      const view = scanBody().views[0]!;
+      const out = await makeCutawayFromApp({ digest: digestOf(profile), inside: { kind: 'machine', brief: 'A moka pot.', parts: ['Boiler'] }, view: { ...view, label: null }, consent: { sendImages: true, acknowledgedAt: 'x' }, privacyTier: 'private', language: 'en' });
+      expect(out.image.base64.length).toBeGreaterThan(100);
+      expect(paths[0]).toBe('POST /api/v1/cutaway?background=1');
+      expect(paths.slice(1).every((p) => p.startsWith('GET /api/v1/cutaway/jobs/'))).toBe(true);
+    } finally {
+      globalThis.fetch = realFetch;
+      server.close();
+    }
+  });
+
+  it('drawing: if the size is refused, asks again without only the size', async () => {
+    const { app } = makeApp();
+    const view = scanBody().views[0];
+    mock.requests.length = 0;
+    mock.imageSizes = ['none of ours'];
+    try {
+      const res = await app.request('/api/v1/cutaway', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ digest: digestOf(profile), inside: { kind: 'machine', brief: 'A moka pot.', parts: ['Boiler'] }, view, consent: { sendImages: true, acknowledgedAt: 'x' } }),
+      });
+      expect(res.status).toBe(200);
+      const tries = mock.requests.filter((r) => r.body?.model === 'muse-image-1.0');
+      expect(tries[0]!.body.tools[0].size).toBeDefined();
+      // The second try leaves out the size but keeps the quality, reasoning and search settings.
+      expect(tries[1]!.body.tools[0].size).toBeUndefined();
+      expect(tries[1]!.body.tools[0]).toMatchObject({ quality: 'high', reasoning_strength: 'high', enable_image_search: true });
+    } finally {
+      mock.imageSizes = null;
+    }
+  });
+
+  it('drawing: asks for the documented size closest to the photo', () => {
+    expect(sizeFor({ width: 3000, height: 4000 })).toBe('1024x1536');
+    expect(sizeFor({ width: 4000, height: 3000 })).toBe('1536x1024');
+    expect(sizeFor({ width: 1000, height: 1100 })).toBe('1024x1024');
+    expect(sizeFor(null)).toBe('1024x1024');
   });
 
   it('cutaway: draws from public-domain reference pictures, without showing them', async () => {

@@ -8,6 +8,7 @@
     "startCommand": "npm start",
     "healthcheckPath": "/api/v1/health",
     "healthcheckTimeout": 120,
+    "drainingSeconds": 300,
     "restartPolicyType": "ON_FAILURE"
   }
 }

@@ -305,7 +305,7 @@ A route shows as unavailable until its settings are filled in `.env`.
 
 ```bash
 npm run typecheck
-npm test                       # 303 tests
+npm test                       # 308 tests
 npm run build:preview && node scripts/e2e.cjs   # screenshots at 1440 px, 390 px, dark
 npm run e2e:live               # a live scan through the real UI and gateway, against a mock Meta API
 npm run eval -- --samples      # or: npm run eval -- eval/cases.json  (live)

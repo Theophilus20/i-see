@@ -127,6 +127,31 @@ export function createApp(deps: AppDeps) {
     return caps.list;
   };
   const jobs = new JobStore();
+  /**
+   * Cutaway drawings that run in the background. A checked, labelled drawing can take longer
+   * than the hosting keeps one request open (Railway closes them at five minutes), so the app
+   * starts one and then asks every few seconds whether it is ready. Kept in memory only: a
+   * finished drawing is dropped after ten minutes, and one nobody has asked about for five
+   * minutes is stopped.
+   */
+  interface Drawing {
+    controller: AbortController;
+    finished: number | null;
+    polled: number;
+    result?: unknown;
+    error?: unknown;
+  }
+  const drawings = new Map<string, Drawing>();
+  const sweepDrawings = setInterval(() => {
+    const now = Date.now();
+    for (const [id, d] of drawings) {
+      if (d.finished !== null ? now - d.finished > 10 * 60_000 : now - d.polled > 5 * 60_000) {
+        d.controller.abort();
+        drawings.delete(id);
+      }
+    }
+  }, 30_000);
+  sweepDrawings.unref();
   const scanLimiter = new RateLimiter(Math.max(1, Math.round(cfg.ratePerMinute / 3)));
   const callLimiter = new RateLimiter(cfg.ratePerMinute);
   // The live camera asks every couple of seconds; it gets its own budget so it never starves the rest.
@@ -225,7 +250,9 @@ export function createApp(deps: AppDeps) {
     c.header('X-Request-Id', id);
     const t0 = Date.now();
     await next();
-    if (c.req.path.startsWith(API_PREFIX)) log('info', 'request', { id, method: c.req.method, path: c.req.path, status: c.res.status, ms: Date.now() - t0 });
+    // Polls for a drawing that is still running come every few seconds; leave them out of the log.
+    const poll = c.req.method === 'GET' && c.req.path.includes('/cutaway/jobs/') && c.res.status === 200;
+    if (c.req.path.startsWith(API_PREFIX) && !poll) log('info', 'request', { id, method: c.req.method, path: c.req.path, status: c.res.status, ms: Date.now() - t0 });
   });
   app.use(
     '*',
@@ -579,11 +606,44 @@ export function createApp(deps: AppDeps) {
     const b = body.data;
     try {
       const photo = b.view && b.consent ? await sanitizeImage(b.view, cfg.maxImageBytes) : null;
-      const r = await makeCutaway(meta, cfg, { digest: b.digest, inside: b.inside, photo, style: 'cutaway' }, ctxFor(c.req.raw.signal, 'hosted', b.language, b.privacyTier), deps.connectorFetch ?? fetch);
+      const draw = (signal: AbortSignal) =>
+        makeCutaway(meta, cfg, { digest: b.digest, inside: b.inside, photo, style: 'cutaway' }, ctxFor(signal, 'hosted', b.language, b.privacyTier), deps.connectorFetch ?? fetch);
+      // ?background=1: start the drawing and answer at once; the app then asks for it by id.
+      if (c.req.query('background') === '1') {
+        const id = randomUUID();
+        const d: Drawing = { controller: new AbortController(), finished: null, polled: Date.now() };
+        drawings.set(id, d);
+        const t0 = Date.now();
+        void draw(d.controller.signal)
+          .then(
+            (r) => {
+              d.result = r;
+            },
+            (e: unknown) => {
+              d.error = e;
+            },
+          )
+          .finally(() => {
+            d.finished = Date.now();
+            log('info', 'drawing finished', { id, ok: d.error === undefined, ms: d.finished - t0 });
+          });
+        return c.json({ jobId: id }, 202);
+      }
+      const r = await draw(c.req.raw.signal);
       return c.json(r);
     } catch (e) {
       return fromError(c, e);
     }
+  });
+
+  /** A background drawing: still running, finished (with the drawing), or the error it ended with. */
+  api.get('/cutaway/jobs/:id', (c) => {
+    const d = drawings.get(c.req.param('id'));
+    if (!d) return fail(c, 404, 'not_found', 'That drawing has expired, or was lost when the server restarted.');
+    d.polled = Date.now();
+    if (d.finished === null) return c.json({ status: 'running' });
+    if (d.error !== undefined) return fromError(c, d.error);
+    return c.json({ status: 'done', result: d.result });
   });
 
   /** Interface text in the person's language (Muse Spark). Cached by the browser. */

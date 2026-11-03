@@ -50,24 +50,19 @@ export function sniffImageMime(b64: string): string {
 }
 
 /**
- * Muse Image's full-quality (2K, about 2.5 megapixel) sizes. The one closest to the photo's
- * shape is asked for, so the drawing is as sharp as the model can make it and needs no
- * cropping to line up with the photo.
+ * The sizes Meta documents for Muse Image. A size sets the drawing's shape, not its pixels: the
+ * server reduces it to a ratio and draws at full quality. The one closest to the photo's shape
+ * is asked for. Other values, such as 1600x1600, are refused.
  */
-export const IMAGE_PRESETS: Array<[number, number]> = [
-  [1600, 1600],
-  [1920, 1280],
-  [1280, 1920],
-  [1792, 1344],
-  [1344, 1792],
-  [2048, 1152],
-  [1152, 2048],
-  [2352, 1008],
+export const IMAGE_SIZES: Array<[number, number]> = [
+  [1024, 1024],
+  [1536, 1024],
+  [1024, 1536],
 ];
 export function sizeFor(photo: { width: number; height: number } | null): string {
-  if (!photo) return '1600x1600';
+  if (!photo) return '1024x1024';
   const r = Math.log(photo.width / Math.max(1, photo.height));
-  const [w, h] = IMAGE_PRESETS.reduce((best, p) => (Math.abs(Math.log(p[0] / p[1]) - r) < Math.abs(Math.log(best[0] / best[1]) - r) ? p : best));
+  const [w, h] = IMAGE_SIZES.reduce((best, p) => (Math.abs(Math.log(p[0] / p[1]) - r) < Math.abs(Math.log(best[0] / best[1]) - r) ? p : best));
   return `${w}x${h}`;
 }
 
@@ -238,7 +233,9 @@ export class MetaTasks extends ChatTasks implements ModelTasks {
         ? photoCutawayPrompt(input.digest, input.inside ?? null)
         : illustratePrompt(input.digest, input.inside ?? null);
     const extra = input.references ?? [];
-    const body = (tier: number): Record<string, unknown> => ({
+    /** Settings left out because the API refused them: the quality settings, the size, or all of them. */
+    type Dropped = Set<'quality' | 'size' | 'tools'>;
+    const body = (drop: Dropped): Record<string, unknown> => ({
       model,
       input: photo
         ? [
@@ -255,39 +252,44 @@ export class MetaTasks extends ChatTasks implements ModelTasks {
       // store: false — nothing about this request is kept on Meta's side for chaining.
       store: false,
       // Reasoning on, and reference image and web search allowed, so it can check real references.
-      ...(tier > 0
-        ? {
+      ...(drop.has('tools')
+        ? {}
+        : {
             tools: [
               {
                 type: 'image_generation',
-                size: input.size ?? sizeFor(photo),
+                ...(drop.has('size') ? {} : { size: input.size ?? sizeFor(photo) }),
                 output_format: 'jpeg',
                 // Highest quality: the most detail, and the least compression.
-                ...(tier > 1 ? { quality: 'high', output_compression: 98 } : {}),
+                ...(drop.has('quality') ? {} : { quality: 'high', output_compression: 98 }),
                 reasoning_strength: 'high',
                 enable_image_search: true,
                 enable_web_search: true,
               },
             ],
-          }
-        : {}),
+          }),
     });
-    const call = (tier: number) =>
+    const call = (drop: Dropped) =>
       // One retry at most: a drawing that times out twice is not worth a third long wait.
-      this.client.postJson<{ output?: Array<{ type?: string; result?: unknown; status?: string }>; usage?: unknown }>('/responses', body(tier), {
+      this.client.postJson<{ output?: Array<{ type?: string; result?: unknown; status?: string }>; usage?: unknown }>('/responses', body(drop), {
         signal: ctx.signal,
         timeoutMs: Math.max(this.cfg.requestTimeoutMs, 150_000),
         maxRetries: 1,
       });
-    // Settings from fullest to plainest: if one is not accepted, ask again with fewer.
+    // If a setting is not accepted, ask again without just that one: first the one the error
+    // names, otherwise the quality settings, then the size, and last of all every setting.
     let res: Awaited<ReturnType<typeof call>> | null = null;
-    for (let tier = 2; tier >= 0; tier--) {
+    const drop: Dropped = new Set();
+    for (;;) {
       try {
-        res = await call(tier);
+        res = await call(drop);
         break;
       } catch (e) {
-        if (!(tier > 0 && e instanceof ApiError && e.status === 400 && e.code !== 'content_policy_violation')) throw e;
-        log('warn', 'image settings not accepted; asking with fewer', { tier, error: e.message });
+        if (!(e instanceof ApiError && e.status === 400 && e.code !== 'content_policy_violation') || drop.has('tools')) throw e;
+        const named = /\bsize\b|\d+x\d+/i.test(e.message) ? 'size' : /quality|compression/i.test(e.message) ? 'quality' : null;
+        const next = named && !drop.has(named) ? named : !drop.has('quality') ? 'quality' : !drop.has('size') ? 'size' : 'tools';
+        drop.add(next);
+        log('warn', 'image settings not accepted; asking without them', { without: next, error: e.message });
       }
     }
     if (!res) throw new ApiError('Muse Image returned no image.', 200, 'no_image', true, META_PROVIDER);
