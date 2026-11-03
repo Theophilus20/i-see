@@ -17,7 +17,7 @@ Built on Meta's models: **Muse Spark** (looking, naming parts, reading, writing,
 search), **SAM 3.1** (outlines), **Muse Wonder** (settling doubts), **Muse Image** (the
 drawing of what is inside), **Muse Voice Transcribe** (spoken questions) through the Meta
 Model API; **Muse Spark Open** and **Muse Glimmer** as open-weight routes; project rules for
-**Muse Code** in `.agents/AGENTS.md`. An independent project, not made or endorsed by Meta.
+**Muse Code** in [.agents/AGENTS.md](.agents/AGENTS.md). An independent project, not made or endorsed by Meta.
 
 ## Run it
 
@@ -36,7 +36,7 @@ MODEL_API_KEY=your-key-here
 ```
 
 `.env` is never uploaded to GitHub. Every other setting is optional and explained in
-`docs/SETTINGS.md`.
+[docs/SETTINGS.md](docs/SETTINGS.md).
 
 Without a key the app still runs: it offers two **sample runs** (no model is called; the
 real firewall and calculator still check them).
@@ -292,7 +292,7 @@ Nothing is sent until you agree. Photos are re-encoded on your device first, whi
 location data. The server keeps a scan in memory only while it runs (at most ten minutes)
 and never writes photos to disk. Your Passport and your Train progress live only in your
 browser. Web searches use words only, never your photo. The full detail is on the
-**Privacy** page in the app and in `docs/ARCHITECTURE.md`.
+**Privacy** page in the app and in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Routes
 
@@ -317,9 +317,9 @@ npm run eval -- --samples      # or: npm run eval -- eval/cases.json  (live)
 
 ## Read more
 
-- `docs/ARCHITECTURE.md`: pipeline, firewall, calculator, privacy, what was and was not
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): pipeline, firewall, calculator, privacy, what was and was not
   verified, deviations from the brief
-- `docs/MODELS.md`: which Meta model does what, endpoints, privacy tiers, capability registry
-- `docs/SETTINGS.md`: every setting, what it does, and its default
-- `docs/DESIGN.md`: the visual system and why
-- `docs/MUSE_CODE.md`: continuing development with Muse Code
+- [docs/MODELS.md](docs/MODELS.md): which Meta model does what, endpoints, privacy tiers, capability registry
+- [docs/SETTINGS.md](docs/SETTINGS.md): every setting, what it does, and its default
+- [docs/DESIGN.md](docs/DESIGN.md): the visual system and why
+- [docs/MUSE_CODE.md](docs/MUSE_CODE.md): continuing development with Muse Code
