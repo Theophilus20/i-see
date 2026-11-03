@@ -322,4 +322,3 @@ npm run eval -- --samples      # or: npm run eval -- eval/cases.json  (live)
 - [docs/MODELS.md](docs/MODELS.md): which Meta model does what, endpoints, privacy tiers, capability registry
 - [docs/SETTINGS.md](docs/SETTINGS.md): every setting, what it does, and its default
 - [docs/DESIGN.md](docs/DESIGN.md): the visual system and why
-- [docs/MUSE_CODE.md](docs/MUSE_CODE.md): continuing development with Muse Code
